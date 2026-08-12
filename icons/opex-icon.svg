@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">OpEx appikon</title>
+  <desc id="desc">Et moderne, avrundet OpEx-symbol med blå, fiolette og turkise kontraster.</desc>
+  <defs>
+    <linearGradient id="bg" x1="58" y1="34" x2="456" y2="488" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#211B43"/>
+      <stop offset="0.54" stop-color="#10182F"/>
+      <stop offset="1" stop-color="#082538"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="135" y1="111" x2="393" y2="406" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A67CFF"/>
+      <stop offset="0.48" stop-color="#558BFF"/>
+      <stop offset="1" stop-color="#42E0D0"/>
+    </linearGradient>
+    <linearGradient id="check" x1="179" y1="244" x2="344" y2="348" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#D8F9FF"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(175 135) rotate(48) scale(330)">
+      <stop stop-color="#8E72FF" stop-opacity=".34"/>
+      <stop offset="1" stop-color="#3ED6D0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="118" fill="url(#bg)"/>
+  <rect x="18" y="18" width="476" height="476" rx="103" fill="url(#glow)" stroke="#DCE4FF" stroke-opacity=".12" stroke-width="4"/>
+  <g>
+    <circle cx="256" cy="256" r="146" fill="#0C1020" fill-opacity=".42" stroke="url(#ring)" stroke-width="28"/>
+    <path d="M178 261.5l51.5 52L340 198" fill="none" stroke="url(#check)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M141 189c28-49 79-79 135-79" fill="none" stroke="#FFFFFF" stroke-opacity=".34" stroke-width="8" stroke-linecap="round"/>
+  </g>
+  <circle cx="390" cy="155" r="18" fill="#43DED1"/>
+  <circle cx="404" cy="202" r="8" fill="#7D73FF"/>
+</svg>
