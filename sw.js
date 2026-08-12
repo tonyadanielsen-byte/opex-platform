@@ -1,8 +1,9 @@
-const CACHE_NAME = "opex-shell-v2.3.1";
+const CACHE_NAME = "opex-shell-v2.4.0";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
+  "./icons/nortura-logo.png",
   "./icons/opex-icon-192.png",
   "./icons/opex-icon-512.png"
 ];

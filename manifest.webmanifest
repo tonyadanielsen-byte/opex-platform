@@ -1,14 +1,14 @@
 {
-  "name": "OpEx Master – Nortura Sarpsborg",
-  "short_name": "OpEx",
-  "description": "Sikker tiltaksoppfølging for Nortura Sarpsborg.",
+  "name": "OpEx Hub – Nortura Sarpsborg",
+  "short_name": "OpEx Hub",
+  "description": "Operations Excellence Hub for sikker og moderne tiltaksoppfølging.",
   "lang": "nb-NO",
   "start_url": "/opex-platform/",
   "scope": "/opex-platform/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#080B15",
-  "theme_color": "#11152A",
+  "background_color": "#F4F5FF",
+  "theme_color": "#0B1730",
   "icons": [
     {
       "src": "icons/opex-icon-192.png",
