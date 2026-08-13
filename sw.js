@@ -1,4 +1,4 @@
-const CACHE_NAME = "opex-shell-v2.5.0";
+const CACHE_NAME = "opex-shell-v2.5.1";
 const APP_SHELL = [
   "./",
   "./index.html",
