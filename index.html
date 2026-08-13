@@ -327,10 +327,31 @@ main{max-width:1680px;padding-top:30px}.pagehead h1,h1,.screen:not(#dashboard) .
 .metric-viz{margin:13px 0 8px}.metric-mini-track{height:7px;overflow:hidden;border-radius:99px;background:rgba(65,81,139,.1)}.metric-mini-track i{display:block;height:100%;border-radius:inherit;transform-origin:left;animation:progressGrow .7s ease both}.metric-viz small{display:block;margin-top:6px;color:#717b98;font-size:10px}.metric-spark{display:block;width:100%;height:34px}.metric-spark .guide{stroke:rgba(65,81,139,.11);stroke-width:1}.metric-spark .sparkline{fill:none;stroke:#547fe6;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.metric-spark circle{fill:#fff;stroke:#547fe6;stroke-width:2}.metric-card .mfoot{margin-top:auto}
 .completed-stamp{display:block;color:#50607f;font-size:11px;line-height:1.35}.completed-stamp b{display:block;color:#172344}
 @media(max-width:760px){.welcome-reward{grid-template-columns:auto 1fr}.reward-visit{grid-column:2;text-align:left}.metric-viz{margin-top:10px}}
+/* === v2.6.1 Pixel alignment · dashboard === */
+#dashboard .dashboard-utility{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;margin:0 0 18px}
+#dashboard .welcome-reward{min-width:0;margin:0;min-height:76px}
+#dashboard .reward-copy{min-width:0}
+#dashboard .reward-copy b{line-height:1.3}
+#dashboard .reward-visit{white-space:nowrap;padding-left:14px;border-left:1px solid rgba(82,113,211,.12)}
+#dashboard .dashboard-controls{margin:0;align-self:stretch;flex-wrap:nowrap}
+#dashboard .dashboard-controls>*{height:52px;align-self:center}
+#dashboard .dash-kpis{align-items:stretch}
+#dashboard .metric-card{display:grid;grid-template-columns:1fr;grid-template-rows:64px 42px 34px 40px 49px;align-content:start;min-height:267px;padding:20px 20px 18px}
+#dashboard .metric-card .micon{margin:0;align-self:start}
+#dashboard .metric-card .mlabel{top:18px;right:18px;max-width:58%;line-height:1.25;text-align:right}
+#dashboard .metric-card .mnum{align-self:end}
+#dashboard .metric-card .msub{margin:3px 0 0;align-self:start;line-height:1.3}
+#dashboard .metric-card .metric-viz{display:flex;flex-direction:column;justify-content:flex-end;margin:0;align-self:stretch}
+#dashboard .metric-card .metric-viz small{height:14px;line-height:14px;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dashboard .metric-card .metric-spark{height:28px;margin-top:auto}
+#dashboard .metric-card .mfoot{align-self:end;width:100%;min-height:49px;margin:0;padding:9px 12px;line-height:1.2;text-align:left}
+@media(max-width:1180px){#dashboard .dashboard-utility{grid-template-columns:1fr}#dashboard .dashboard-controls{justify-content:flex-start}#dashboard .metric-card{min-height:267px}}
+@media(max-width:760px){#dashboard .dashboard-utility{gap:12px}#dashboard .welcome-reward{grid-template-columns:auto minmax(0,1fr);min-height:auto}#dashboard .reward-visit{grid-column:2;padding:5px 0 0;border-left:0;white-space:normal}#dashboard .dashboard-controls{overflow-x:auto}#dashboard .metric-card{grid-template-rows:54px 38px 32px 38px 44px;min-height:230px;padding:15px 13px 12px}#dashboard .metric-card .mfoot{display:flex;min-height:44px;font-size:10px}#dashboard .metric-card .mlabel{top:14px;right:13px}}
+@media(max-width:440px){#dashboard .dash-kpis{grid-template-columns:1fr}#dashboard .metric-card{min-height:230px}}
 </style>
 </head>
 <body>
-<div class="topstrip"><div>Nortura Sarpsborg · OpEx Hub Live <span class="live">LIVE</span></div><div id="versjon">v2.6.0-finish-polish</div></div>
+<div class="topstrip"><div>Nortura Sarpsborg · OpEx Hub Live <span class="live">LIVE</span></div><div id="versjon">v2.6.1-pixel-alignment</div></div>
 <nav><div class="brand"><img src="./icons/nortura-logo.png" alt="Nortura"><div>OpEx Hub<small>Operations Excellence · Nortura Sarpsborg</small></div></div><div class="tabs"><button class="tab active" onclick="show('dashboard')">📊 Dashboard</button><button class="tab" onclick="show('mine')">👤 Mine tiltak</button><button class="tab" onclick="show('alle')">📋 Alle tiltak</button><button class="tab" onclick="show('arkiv')" id="archiveTab" style="display:none">✅ Fullførte tiltak</button><button class="tab" onclick="openModal()">+ Nytt tiltak</button><button class="tab" onclick="show('admin')" id="adminTab">⚙ Admin</button></div><div class="userbox" onclick="toggleDrop()"><div class="avatar" id="avatar">?</div><div><b id="navUser">Velg bruker</b><div class="small muted" style="color:#d7e1d3" id="userRole">ikke valgt</div></div><div class="dropdown" id="drop"><button class="dropitem" onclick="event.stopPropagation();resetUser()">👤 Bytt bruker</button><button class="dropitem" onclick="event.stopPropagation();loadData(true)">🔄 Oppdater data</button><button class="dropitem" onclick="event.stopPropagation();exportBackup()">💾 Eksporter backup</button><button class="dropitem" onclick="event.stopPropagation();show('admin');toggleDrop(false)">⚙ Admin</button></div></div></nav>
 <div class="login" id="login"><div class="loginbox"><img src="./icons/nortura-logo.png" alt="Nortura"><h2>Velg bruker</h2><p class="muted">Velg deg selv. Dette styrer <b>Mine tiltak</b>, eierskap og registrering.</p><button class="userbtn" onclick="selectUser('Tony Danielsen')">Tony Danielsen <span>TD</span></button><button class="userbtn" onclick="selectUser('Kenneth Nordbakk')">Kenneth Nordbakk <span>KN</span></button><button class="userbtn" onclick="selectUser('Erling Magnussen')">Erling Magnussen <span>EM</span></button><button class="userbtn" onclick="selectUser('Ole Henrik Ødegård')">Ole Henrik Ødegård <span>OH</span></button></div></div>
 <main>
@@ -341,11 +362,13 @@ main{max-width:1680px;padding-top:30px}.pagehead h1,h1,.screen:not(#dashboard) .
       <div class="subtitle">Tiltaksoppfølging · Ferdigmat / Renhold / Rekvisita · HMS først</div>
     </div>
   </div>
-  <div class="welcome-reward" id="welcomeReward" aria-live="polite"></div>
-  <div class="dashboard-controls">
-    <select class="dash-select" id="dashOwner" onchange="renderDashboard()"><option value="">Alle ansvarlige</option></select>
-    <select class="dash-date" id="dashPeriod" onchange="renderDashboard()"><option value="all">Hele tiltaksmassen</option><option value="year">2026</option><option value="month">Denne måneden</option></select>
-    <button class="btn export" onclick="exportBackup()">⇩ Eksporter data</button>
+  <div class="dashboard-utility">
+    <div class="welcome-reward" id="welcomeReward" aria-live="polite"></div>
+    <div class="dashboard-controls">
+      <select class="dash-select" id="dashOwner" onchange="renderDashboard()"><option value="">Alle ansvarlige</option></select>
+      <select class="dash-date" id="dashPeriod" onchange="renderDashboard()"><option value="all">Hele tiltaksmassen</option><option value="year">2026</option><option value="month">Denne måneden</option></select>
+      <button class="btn export" onclick="exportBackup()">⇩ Eksporter data</button>
+    </div>
   </div>
   <div id="alertBox"></div>
   <div class="dash-kpis" id="kpis"></div>
