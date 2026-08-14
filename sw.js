@@ -1,4 +1,4 @@
-const CACHE_NAME = "opex-shell-v2.9.2-push-bg";
+const CACHE_NAME = "opex-shell-v2.9.3-push-click";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -8,6 +8,45 @@ const APP_SHELL = [
   "./icons/opex-icon-192.png",
   "./icons/opex-icon-512.png"
 ];
+
+// Register notification click handling BEFORE Firebase Messaging is imported.
+// This prevents the SDK's default click behavior from sending GitHub Pages
+// notifications to the account root instead of the OpEx PWA scope.
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+
+  const notificationData = event.notification?.data || {};
+  const fcmMessage = notificationData.FCM_MSG || {};
+  const requestedLink =
+    notificationData.link ||
+    fcmMessage?.data?.link ||
+    fcmMessage?.fcmOptions?.link ||
+    fcmMessage?.notification?.click_action ||
+    self.registration.scope;
+
+  let target;
+  try {
+    target = new URL(requestedLink, self.registration.scope).href;
+  } catch {
+    target = self.registration.scope;
+  }
+
+  // Keep notification clicks inside this PWA's GitHub Pages scope. A malformed
+  // or root-level fallback must never open tonyadanielsen-byte.github.io/.
+  if (!target.startsWith(self.registration.scope)) {
+    target = self.registration.scope;
+  }
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(clients => {
+      const existing = clients.find(client => client.url.startsWith(self.registration.scope));
+      if (existing) {
+        return existing.navigate(target).catch(() => existing).then(() => existing.focus());
+      }
+      return self.clients.openWindow(target);
+    })
+  );
+});
 
 // Firebase Cloud Messaging for web push. Failure to load the remote SDK must
 // never stop the ordinary OpEx offline/service-worker functionality.
@@ -26,14 +65,11 @@ try {
   });
   messaging = firebase.messaging();
   messaging.onBackgroundMessage(payload => {
-    // Always render background messages explicitly. This makes installed mobile
-    // PWAs behave consistently for both Firebase Console notification payloads
-    // and the later data-only automatic notifications.
     const notification = payload?.notification || {};
     const data = payload?.data || {};
     const title = notification.title || data.title || "OpEx Hub";
     const body = notification.body || data.body || "Du har et nytt varsel.";
-    const link = data.link || payload?.fcmOptions?.link || "./";
+    const link = data.link || payload?.fcmOptions?.link || self.registration.scope;
 
     return self.registration.showNotification(title, {
       body,
@@ -78,22 +114,6 @@ self.addEventListener("activate", event => {
     caches.keys()
       .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener("notificationclick", event => {
-  event.notification.close();
-  const link = event.notification?.data?.link || "./";
-  const target = new URL(link, self.registration.scope).href;
-  event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(clients => {
-      const existing = clients.find(client => client.url.startsWith(self.registration.scope));
-      if (existing) {
-        existing.navigate(target).catch(() => {});
-        return existing.focus();
-      }
-      return self.clients.openWindow(target);
-    })
   );
 });
 
