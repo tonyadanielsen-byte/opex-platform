@@ -8,6 +8,90 @@
   let messaging = null;
   let initPromise = null;
 
+  function installMobileHeaderFix() {
+    if (document.getElementById('opex-mobile-header-fix')) return;
+    const style = document.createElement('style');
+    style.id = 'opex-mobile-header-fix';
+    style.textContent = `
+@media (max-width:820px), (orientation:landscape) and (max-height:600px) and (max-width:1180px) {
+  nav{
+    height:auto!important;
+    min-height:0!important;
+    display:flex!important;
+    align-items:center!important;
+    flex-wrap:wrap!important;
+    gap:6px 8px!important;
+    padding:8px 10px!important;
+    overflow:visible!important;
+    z-index:200!important;
+  }
+  .brand{
+    order:1!important;
+    flex:1 1 calc(100% - 52px)!important;
+    min-width:0!important;
+    max-width:calc(100% - 52px)!important;
+    overflow:hidden!important;
+  }
+  .brand div{min-width:0!important;overflow:hidden!important}
+  .brand small{max-width:100%!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+  .userbox{
+    order:2!important;
+    display:flex!important;
+    position:relative!important;
+    flex:0 0 auto!important;
+    margin-left:auto!important;
+    z-index:220!important;
+  }
+  .tabs{
+    order:3!important;
+    position:static!important;
+    display:flex!important;
+    flex:0 0 100%!important;
+    width:100%!important;
+    left:auto!important;
+    right:auto!important;
+    top:auto!important;
+    bottom:auto!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    gap:4px!important;
+    padding:4px 0 1px!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    scrollbar-width:none!important;
+    z-index:auto!important;
+  }
+  .tabs::-webkit-scrollbar{display:none!important}
+  .tab{
+    flex:0 0 auto!important;
+    min-height:46px!important;
+    padding:7px 10px!important;
+    font-size:10px!important;
+    line-height:1.15!important;
+    white-space:nowrap!important;
+  }
+  .dropdown{
+    position:fixed!important;
+    display:none!important;
+    top:62px!important;
+    right:8px!important;
+    left:auto!important;
+    width:min(290px,calc(100vw - 16px))!important;
+    max-width:calc(100vw - 16px)!important;
+    max-height:calc(100dvh - 76px)!important;
+    overflow-y:auto!important;
+    z-index:9999!important;
+  }
+  .dropdown.open{display:block!important}
+  main{padding-bottom:calc(28px + env(safe-area-inset-bottom))!important}
+}
+`;
+    document.head.appendChild(style);
+  }
+
   function notify(message, error = false) {
     if (typeof window.toast === 'function') return window.toast(message, error);
     console[error ? 'error' : 'log']('[OpEx Push]', message);
@@ -186,6 +270,7 @@
   }
 
   function bootPush() {
+    installMobileHeaderFix();
     ensureButtons();
     if (!window.firebase?.auth) return;
     firebase.auth().onAuthStateChanged(user => {
