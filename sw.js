@@ -1,4 +1,4 @@
-const CACHE_NAME = "opex-shell-v2.9.4-push-dedupe";
+const CACHE_NAME = "opex-shell-v2.9.5-push-stable";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -10,8 +10,7 @@ const APP_SHELL = [
 ];
 
 // Register notification click handling BEFORE Firebase Messaging is imported.
-// This prevents the SDK's default click behavior from sending GitHub Pages
-// notifications to the account root instead of the OpEx PWA scope.
+// Keep every notification click inside the OpEx GitHub Pages/PWA scope.
 self.addEventListener("notificationclick", event => {
   event.notification.close();
 
@@ -31,8 +30,6 @@ self.addEventListener("notificationclick", event => {
     target = self.registration.scope;
   }
 
-  // Keep notification clicks inside this PWA's GitHub Pages scope. A malformed
-  // or root-level fallback must never open tonyadanielsen-byte.github.io/.
   if (!target.startsWith(self.registration.scope)) {
     target = self.registration.scope;
   }
@@ -65,22 +62,21 @@ try {
   });
   messaging = firebase.messaging();
   messaging.onBackgroundMessage(payload => {
-    // FCM notification payloads are rendered automatically in the background.
-    // Rendering them again here creates duplicate Android notifications.
-    if (payload?.notification) return;
-
-    // Future automatic OpEx notifications may be data-only. Those need an
-    // explicit notification from the service worker.
+    // On the installed Samsung/Android PWA, relying on FCM's automatic
+    // rendering proved unreliable. Render the received background payload
+    // explicitly so delivery works while OpEx is closed.
+    const notification = payload?.notification || {};
     const data = payload?.data || {};
-    const title = data.title || "OpEx Hub";
-    const body = data.body || "Du har et nytt varsel.";
-    const link = data.link || self.registration.scope;
+    const title = notification.title || data.title || "OpEx Hub";
+    const body = notification.body || data.body || "Du har et nytt varsel.";
+    const link = data.link || payload?.fcmOptions?.link || self.registration.scope;
 
     return self.registration.showNotification(title, {
       body,
-      icon: "./icons/opex-icon-192.png",
+      icon: notification.icon || "./icons/opex-icon-192.png",
       badge: "./icons/opex-icon-192.png",
       tag: data.tag || "opex-notification",
+      renotify: false,
       data: { link }
     });
   });
@@ -140,8 +136,6 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  // Keep the push helper fresh. It contains the mobile header/profile fix and
-  // must not get stuck behind an old cache on installed PWAs.
   if (requestUrl.pathname.endsWith("/push-v1a.js")) {
     event.respondWith(
       fetch(event.request)
