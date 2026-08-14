@@ -1,4 +1,4 @@
-const CACHE_NAME = "opex-shell-v2.9.5-push-stable";
+const CACHE_NAME = "opex-shell-v2.9.6-push-notification";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -62,18 +62,23 @@ try {
   });
   messaging = firebase.messaging();
   messaging.onBackgroundMessage(payload => {
-    // On the installed Samsung/Android PWA, relying on FCM's automatic
-    // rendering proved unreliable. Render the received background payload
-    // explicitly so delivery works while OpEx is closed.
-    const notification = payload?.notification || {};
+    // Notification payloads are rendered automatically by FCM/browser while
+    // the PWA is backgrounded or closed. Do not call showNotification again,
+    // otherwise the user receives duplicates.
+    if (payload?.notification?.title || payload?.notification?.body) {
+      console.log("[OpEx Push] Background notification received; browser handles display.");
+      return;
+    }
+
+    // Keep a data-only fallback for diagnostics/legacy senders.
     const data = payload?.data || {};
-    const title = notification.title || data.title || "OpEx Hub";
-    const body = notification.body || data.body || "Du har et nytt varsel.";
+    const title = data.title || "OpEx Hub";
+    const body = data.body || "Du har et nytt varsel.";
     const link = data.link || payload?.fcmOptions?.link || self.registration.scope;
 
     return self.registration.showNotification(title, {
       body,
-      icon: notification.icon || "./icons/opex-icon-192.png",
+      icon: "./icons/opex-icon-192.png",
       badge: "./icons/opex-icon-192.png",
       tag: data.tag || "opex-notification",
       renotify: false,

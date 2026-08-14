@@ -7,6 +7,7 @@ const { getMessaging } = require('firebase-admin/messaging');
 initializeApp();
 
 const APP_LINK = '/opex-platform/';
+const APP_URL = 'https://tonyadanielsen-byte.github.io/opex-platform/';
 const OWNER_UID = Object.freeze({
   'Tony Danielsen': 'TJKI3zlDKSR7jvFXksVFgEgjS432',
   'Kenneth Nordbakk': 'gibm3aDi1KWlNyl7P3jTktQoGsM2',
@@ -41,13 +42,25 @@ async function sendToUid(uid, message) {
   const tokens = collectTokensForUid(snapshot.val(), uid);
   if (!tokens.length) return { skipped: 'no-token', uid };
 
+  const title = String(message.title || 'OpEx Hub');
+  const body = String(message.body || 'Du har et nytt varsel.');
+  const link = String(message.link || APP_URL);
+  const tag = String(message.tag || 'opex-notification');
+
   const response = await getMessaging().sendEachForMulticast({
     tokens,
+    // A real notification payload makes FCM/browser display the message while
+    // the PWA is backgrounded or fully closed. The data payload remains so the
+    // app can keep its routing and event metadata.
+    notification: {
+      title,
+      body,
+    },
     data: {
-      title: String(message.title || 'OpEx Hub'),
-      body: String(message.body || 'Du har et nytt varsel.'),
-      link: String(message.link || APP_LINK),
-      tag: String(message.tag || 'opex-notification'),
+      title,
+      body,
+      link,
+      tag,
       eventType: String(message.eventType || 'opex-event'),
       taskId: String(message.taskId || ''),
       owner: String(message.owner || ''),
@@ -56,6 +69,17 @@ async function sendToUid(uid, message) {
       headers: {
         Urgency: message.urgency || 'high',
         TTL: String(message.ttl || 3600),
+      },
+      notification: {
+        title,
+        body,
+        icon: `${APP_URL}icons/opex-icon-192.png`,
+        badge: `${APP_URL}icons/opex-icon-192.png`,
+        tag,
+        renotify: false,
+      },
+      fcmOptions: {
+        link: APP_URL,
       },
     },
   });
