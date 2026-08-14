@@ -1,4 +1,4 @@
-const CACHE_NAME = "opex-shell-v2.9.0-push-v1a";
+const CACHE_NAME = "opex-shell-v2.9.1-mobilefix";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -106,6 +106,21 @@ self.addEventListener("fetch", event => {
           return injectPushModule(response);
         })
         .catch(() => caches.match("./index.html").then(injectPushModule))
+    );
+    return;
+  }
+
+  // Keep the push helper fresh. It contains the mobile header/profile fix and
+  // must not get stuck behind an old cache on installed PWAs.
+  if (requestUrl.pathname.endsWith("/push-v1a.js")) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
     );
     return;
   }
