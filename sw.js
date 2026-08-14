@@ -1,4 +1,4 @@
-const CACHE_NAME = "opex-shell-v2.9.1-mobilefix";
+const CACHE_NAME = "opex-shell-v2.9.2-push-bg";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -26,16 +26,21 @@ try {
   });
   messaging = firebase.messaging();
   messaging.onBackgroundMessage(payload => {
-    // Notification payloads from Firebase Console/FCM are displayed by FCM.
-    // Data-only messages used by the later automatic sender need us to display them.
-    if (payload && payload.notification) return;
+    // Always render background messages explicitly. This makes installed mobile
+    // PWAs behave consistently for both Firebase Console notification payloads
+    // and the later data-only automatic notifications.
+    const notification = payload?.notification || {};
     const data = payload?.data || {};
-    self.registration.showNotification(data.title || "OpEx Hub", {
-      body: data.body || "Du har et nytt varsel.",
-      icon: "./icons/opex-icon-192.png",
+    const title = notification.title || data.title || "OpEx Hub";
+    const body = notification.body || data.body || "Du har et nytt varsel.";
+    const link = data.link || payload?.fcmOptions?.link || "./";
+
+    return self.registration.showNotification(title, {
+      body,
+      icon: notification.icon || "./icons/opex-icon-192.png",
       badge: "./icons/opex-icon-192.png",
       tag: data.tag || "opex-notification",
-      data: { link: data.link || "./" }
+      data: { link }
     });
   });
 } catch (error) {
