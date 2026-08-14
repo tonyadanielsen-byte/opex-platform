@@ -1,4 +1,4 @@
-const CACHE_NAME = "opex-shell-v2.9.3-push-click";
+const CACHE_NAME = "opex-shell-v2.9.4-push-dedupe";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -65,15 +65,20 @@ try {
   });
   messaging = firebase.messaging();
   messaging.onBackgroundMessage(payload => {
-    const notification = payload?.notification || {};
+    // FCM notification payloads are rendered automatically in the background.
+    // Rendering them again here creates duplicate Android notifications.
+    if (payload?.notification) return;
+
+    // Future automatic OpEx notifications may be data-only. Those need an
+    // explicit notification from the service worker.
     const data = payload?.data || {};
-    const title = notification.title || data.title || "OpEx Hub";
-    const body = notification.body || data.body || "Du har et nytt varsel.";
-    const link = data.link || payload?.fcmOptions?.link || self.registration.scope;
+    const title = data.title || "OpEx Hub";
+    const body = data.body || "Du har et nytt varsel.";
+    const link = data.link || self.registration.scope;
 
     return self.registration.showNotification(title, {
       body,
-      icon: notification.icon || "./icons/opex-icon-192.png",
+      icon: "./icons/opex-icon-192.png",
       badge: "./icons/opex-icon-192.png",
       tag: data.tag || "opex-notification",
       data: { link }
