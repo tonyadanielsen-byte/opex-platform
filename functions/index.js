@@ -57,7 +57,7 @@ async function sendToUid(uid, message) {
         title,
         body,
         icon: `${APP_URL}icons/opex-icon-192.png`,
-        badge: `${APP_URL}icons/opex-notification-badge.svg`,
+        badge: `${APP_URL}icons/opex-notification-badge-96.png`,
         tag,
         renotify: false,
         data: { link, taskId: clean(message.taskId) },
