@@ -31,7 +31,12 @@
       const title = document.getElementById('m_tittel')?.value?.trim();
       const shouldCelebrate = status === 'Fullført' && Boolean(title);
       const result = original.apply(this, args);
-      if (shouldCelebrate) setTimeout(() => celebrateCompleted(`${title} er fullført. Sterkt jobbet! 💪`), 550);
+      if (shouldCelebrate) {
+        setTimeout(() => {
+          const modalClosed = !document.getElementById('modal')?.classList.contains('open');
+          if (modalClosed) celebrateCompleted(`${title} er fullført. Sterkt jobbet! 💪`);
+        }, 700);
+      }
       return result;
     };
     wrapped.__opexV1F = true;
