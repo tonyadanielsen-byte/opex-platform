@@ -48,4 +48,4 @@ jobs:
         run: npm install --global firebase-tools
 
       - name: Deploy Firebase Functions
-        run: firebase deploy --only functions --project opex-nortura --non-interactive
+        run: firebase deploy --only functions --project opex-nortura --non-interactive --force
