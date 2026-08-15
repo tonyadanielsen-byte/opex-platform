@@ -57,7 +57,7 @@ async function sendToUid(uid, message) {
         title,
         body,
         icon: `${APP_URL}icons/opex-icon-192.png`,
-        badge: `${APP_URL}icons/opex-notification-badge-96.png`,
+        badge: `${APP_URL}icons/opex-status-badge-v2.png?v=2`,
         tag,
         renotify: false,
         data: { link, taskId: clean(message.taskId) },
@@ -219,14 +219,17 @@ exports.notifyTaskChangesV1B = onValueWritten({
         });
       }
     } else if (TERMINAL.has(status)) {
-      const labels = {
-        'Fullført': '✅ Tiltak fullført',
+      const titles = {
+        'Fullført': '🎉 Tiltak fullført!',
         'Stanset': '💡 Tiltak flyttet til Idébank',
         'Avsluttet': '⏹ Tiltak avsluttet',
       };
+      const body = status === 'Fullført'
+        ? `${after.tittel} er i mål. Sterkt jobbet! 💪`
+        : after.tittel;
       await sendToOwner(after, {
-        title: labels[status],
-        body: after.tittel,
+        title: titles[status],
+        body,
         tag: `opex-status-${taskId}-${Date.now()}`,
         eventType: `status-${status.toLowerCase()}`,
         taskId,
