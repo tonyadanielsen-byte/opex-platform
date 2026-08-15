@@ -1,7 +1,7 @@
-const CACHE_NAME = "opex-shell-v2.9.8-push-v1e";
+const CACHE_NAME = "opex-shell-v2.9.9-final-v1f";
 const APP_SHELL = [
-  "./", "./index.html", "./manifest.webmanifest", "./push-v1a.js", "./push-deeplink-v1d.js",
-  "./icons/nortura-logo.png", "./icons/opex-icon-192.png", "./icons/opex-icon-512.png", "./icons/opex-notification-badge-96.png"
+  "./", "./index.html", "./manifest.webmanifest", "./push-v1a.js", "./push-deeplink-v1d.js", "./ui-v1f.css", "./ui-v1f.js",
+  "./icons/nortura-logo.png", "./icons/opex-icon-192.png", "./icons/opex-icon-512.png", "./icons/opex-status-badge-v2.png"
 ];
 
 self.addEventListener("notificationclick", event => {
@@ -42,7 +42,7 @@ try {
     return self.registration.showNotification(title, {
       body,
       icon: "./icons/opex-icon-192.png",
-      badge: "./icons/opex-notification-badge-96.png",
+      badge: "./icons/opex-status-badge-v2.png?v=2",
       tag: data.tag || "opex-notification",
       renotify: false,
       data: { link, taskId: data.taskId || "" }
@@ -57,6 +57,8 @@ function injectPushModule(response) {
   return response.text().then(html => {
     let injected = html.includes("push-v1a.js") ? html : html.replace("</body>", '<script src="./push-v1a.js"></script></body>');
     if (!injected.includes("push-deeplink-v1d.js")) injected = injected.replace("</body>", '<script src="./push-deeplink-v1d.js"></script></body>');
+    if (!injected.includes("ui-v1f.css")) injected = injected.replace("</head>", '<link rel="stylesheet" href="./ui-v1f.css?v=1"></head>');
+    if (!injected.includes("ui-v1f.js")) injected = injected.replace("</body>", '<script src="./ui-v1f.js?v=1"></script></body>');
     const headers = new Headers(response.headers); headers.delete("content-length");
     return new Response(injected, { status: response.status, statusText: response.statusText, headers });
   });
@@ -72,7 +74,7 @@ self.addEventListener("fetch", event => {
     event.respondWith(fetch(event.request).then(response => { const copy=response.clone(); caches.open(CACHE_NAME).then(cache => cache.put("./index.html", copy)); return injectPushModule(response); }).catch(() => caches.match("./index.html").then(injectPushModule)));
     return;
   }
-  if (requestUrl.pathname.endsWith("/push-v1a.js") || requestUrl.pathname.endsWith("/push-deeplink-v1d.js")) {
+  if (["/push-v1a.js","/push-deeplink-v1d.js","/ui-v1f.css","/ui-v1f.js"].some(suffix => requestUrl.pathname.endsWith(suffix))) {
     event.respondWith(fetch(event.request).then(response => { const copy=response.clone(); caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)); return response; }).catch(() => caches.match(event.request)));
     return;
   }

@@ -1,0 +1,101 @@
+/* OpEx V1F — split-screen/modal resilience + completion celebration */
+.modalwrap{
+  overflow:hidden;
+  overscroll-behavior:contain;
+}
+.modal{
+  display:flex;
+  flex-direction:column;
+  overflow:hidden!important;
+  max-height:calc(100dvh - 24px)!important;
+}
+.modalhead{
+  position:relative!important;
+  top:auto!important;
+  z-index:5!important;
+  flex:0 0 auto;
+}
+.modalhead .btn{
+  flex:0 0 auto;
+  min-width:44px;
+  min-height:44px;
+  display:grid;
+  place-items:center;
+  font-size:24px;
+  line-height:1;
+}
+.modalbody{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.admin-warning{flex:0 0 auto}
+.modalfoot{
+  position:relative!important;
+  bottom:auto!important;
+  z-index:5!important;
+  flex:0 0 auto;
+}
+
+/* Laptop split-screen: compact sheet, header/X always visible, form scales cleanly. */
+@media (max-width:1100px){
+  .modalwrap{
+    padding:10px!important;
+    align-items:center!important;
+    justify-content:center!important;
+  }
+  .modal{
+    width:min(100%,760px)!important;
+    max-width:760px!important;
+    max-height:calc(100dvh - 20px)!important;
+    border-radius:20px!important;
+  }
+  .modalhead{padding:12px 14px!important}
+  .modalbody{padding:14px!important}
+  .modalfoot{padding:11px 14px!important}
+  .admin-warning{margin:10px 14px 0!important}
+  .formgrid{grid-template-columns:minmax(0,1fr)!important;gap:11px!important}
+  .formgrid .full{grid-column:1!important}
+  .modalfoot{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:8px!important}
+  .modal-actions{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:8px!important}
+  .modalfoot>div:last-child{display:grid!important;grid-template-columns:1fr 1fr!important;width:100%!important}
+  .modalfoot .btn{width:100%!important;min-width:0!important}
+}
+
+@media (max-width:620px){
+  .modalwrap{padding:0!important;align-items:flex-end!important}
+  .modal{width:100%!important;max-height:96dvh!important;border-radius:22px 22px 0 0!important}
+  .modalfoot>div:last-child{grid-template-columns:1fr!important}
+}
+
+.opex-celebration{
+  position:fixed;
+  inset:0;
+  z-index:130;
+  display:grid;
+  place-items:center;
+  pointer-events:none;
+  background:radial-gradient(circle at center,rgba(126,98,255,.16),rgba(16,20,38,.08) 38%,transparent 72%);
+  animation:opexCelebrationFade 1.75s ease forwards;
+}
+.opex-celebration-card{
+  position:relative;
+  min-width:min(430px,calc(100vw - 32px));
+  padding:28px 30px;
+  text-align:center;
+  border-radius:24px;
+  color:#17203d;
+  background:linear-gradient(145deg,rgba(255,255,255,.98),rgba(243,246,255,.96));
+  border:1px solid rgba(90,82,204,.18);
+  box-shadow:0 30px 90px rgba(43,45,105,.26);
+  animation:opexCelebrationPop .48s cubic-bezier(.2,.85,.25,1.2) both;
+}
+.opex-celebration-icon{font-size:48px;line-height:1;margin-bottom:8px}
+.opex-celebration-card strong{display:block;font-size:23px;margin-bottom:5px}
+.opex-celebration-card span{color:#606a88;font-size:14px}
+.opex-confetti{position:absolute;left:50%;top:50%;width:8px;height:16px;border-radius:3px;background:currentColor;animation:opexConfetti 1.15s ease-out forwards}
+@keyframes opexCelebrationPop{from{transform:scale(.82) translateY(16px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+@keyframes opexCelebrationFade{0%,74%{opacity:1}100%{opacity:0}}
+@keyframes opexConfetti{from{transform:translate(-50%,-50%) rotate(0deg);opacity:1}to{transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) rotate(var(--r));opacity:0}}
