@@ -1,7 +1,7 @@
-const CACHE_NAME = "opex-shell-v2.9.7-push-v1d";
+const CACHE_NAME = "opex-shell-v2.9.8-push-v1e";
 const APP_SHELL = [
   "./", "./index.html", "./manifest.webmanifest", "./push-v1a.js", "./push-deeplink-v1d.js",
-  "./icons/nortura-logo.png", "./icons/opex-icon-192.png", "./icons/opex-icon-512.png", "./icons/opex-notification-badge.svg"
+  "./icons/nortura-logo.png", "./icons/opex-icon-192.png", "./icons/opex-icon-512.png", "./icons/opex-notification-badge-96.png"
 ];
 
 self.addEventListener("notificationclick", event => {
@@ -42,7 +42,7 @@ try {
     return self.registration.showNotification(title, {
       body,
       icon: "./icons/opex-icon-192.png",
-      badge: "./icons/opex-notification-badge.svg",
+      badge: "./icons/opex-notification-badge-96.png",
       tag: data.tag || "opex-notification",
       renotify: false,
       data: { link, taskId: data.taskId || "" }
