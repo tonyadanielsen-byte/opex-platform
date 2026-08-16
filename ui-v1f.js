@@ -1,6 +1,9 @@
 (() => {
   'use strict';
 
+  const TRASH_CONFIRM_KEY = 'opex_confirm_trash';
+  const bypassTrashButtons = new WeakSet();
+
   function celebrateCompleted(title) {
     document.querySelector('.opex-celebration')?.remove();
     const layer = document.createElement('div');
@@ -28,6 +31,15 @@
     if (warning) warning.style.setProperty('display', 'none', 'important');
   }
 
+  function trashConfirmationEnabled() {
+    return localStorage.getItem(TRASH_CONFIRM_KEY) !== 'false';
+  }
+
+  function setTrashConfirmationEnabled(enabled) {
+    localStorage.setItem(TRASH_CONFIRM_KEY, enabled ? 'true' : 'false');
+    syncTrashPreferenceControl();
+  }
+
   function showTrashConfirmation(onConfirm) {
     document.querySelector('.opex-confirm-layer')?.remove();
     const layer = document.createElement('div');
@@ -36,10 +48,6 @@
       <div class="opex-confirm-card" role="dialog" aria-modal="true" aria-labelledby="opexTrashConfirmTitle">
         <h3 id="opexTrashConfirmTitle">Flytte tiltaket til papirkurv?</h3>
         <p>Tiltaket fjernes fra aktive visninger, men kan gjenopprettes senere av administrator.</p>
-        <label class="opex-confirm-remember">
-          <input type="checkbox" id="opexTrashDontAsk">
-          <span>Ikke spør meg igjen på denne enheten</span>
-        </label>
         <div class="opex-confirm-actions">
           <button type="button" class="btn secondary" data-confirm-cancel>Avbryt</button>
           <button type="button" class="btn danger" data-confirm-ok>Flytt til papirkurv</button>
@@ -51,34 +59,89 @@
     layer.querySelector('[data-confirm-cancel]')?.addEventListener('click', close);
     layer.addEventListener('click', event => { if (event.target === layer) close(); });
     layer.querySelector('[data-confirm-ok]')?.addEventListener('click', () => {
-      const dontAsk = Boolean(layer.querySelector('#opexTrashDontAsk')?.checked);
-      localStorage.setItem('opex_confirm_trash', dontAsk ? 'false' : 'true');
       close();
-      onConfirm(dontAsk);
+      onConfirm();
     });
   }
 
-  function installTrashWrapper() {
-    if (typeof window.moveToTrash !== 'function' || window.moveToTrash.__opexV1H) return false;
-    const original = window.moveToTrash;
-    const wrapped = function wrappedMoveToTrash(...args) {
-      const confirmationEnabled = localStorage.getItem('opex_confirm_trash') !== 'false';
-      if (!confirmationEnabled) return original.apply(this, args);
+  function isTrashButton(element) {
+    const button = element?.closest?.('button');
+    if (!button) return null;
+    const text = String(button.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    return text.includes('flytt til papirkurv') ? button : null;
+  }
 
+  function installTrashClickGuard() {
+    if (document.documentElement.dataset.opexTrashGuard === 'true') return;
+    document.documentElement.dataset.opexTrashGuard = 'true';
+
+    document.addEventListener('click', event => {
+      const button = isTrashButton(event.target);
+      if (!button) return;
+
+      if (bypassTrashButtons.has(button)) {
+        bypassTrashButtons.delete(button);
+        return;
+      }
+
+      if (!trashConfirmationEnabled()) return;
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
       showTrashConfirmation(() => {
-        const previous = localStorage.getItem('opex_confirm_trash');
-        localStorage.setItem('opex_confirm_trash', 'false');
-        try {
-          original.apply(this, args);
-        } finally {
-          if (previous === null) localStorage.removeItem('opex_confirm_trash');
-          else localStorage.setItem('opex_confirm_trash', previous);
-        }
+        bypassTrashButtons.add(button);
+        button.click();
       });
-    };
-    wrapped.__opexV1H = true;
-    window.moveToTrash = wrapped;
+    }, true);
+  }
+
+  function syncTrashPreferenceControl() {
+    const input = document.getElementById('opexTrashPreference');
+    if (input) input.checked = trashConfirmationEnabled();
+  }
+
+  function installUserMenuPreference() {
+    const menu = document.querySelector('.dropdown');
+    if (!menu) return false;
+
+    if (!document.getElementById('opexTrashPreferenceRow')) {
+      const row = document.createElement('div');
+      row.id = 'opexTrashPreferenceRow';
+      row.className = 'opex-menu-preference';
+      row.innerHTML = `
+        <div class="opex-menu-pref-copy">
+          <span class="opex-menu-pref-icon">🗑️</span>
+          <span>Bekreft før flytting til papirkurv</span>
+        </div>
+        <label class="opex-menu-switch" title="Bekreft før flytting til papirkurv">
+          <input type="checkbox" id="opexTrashPreference" aria-label="Bekreft før flytting til papirkurv">
+          <span aria-hidden="true"></span>
+        </label>`;
+
+      const adminItem = Array.from(menu.children).find(el => String(el.textContent || '').trim().toLowerCase().includes('admin'));
+      if (adminItem) menu.insertBefore(row, adminItem);
+      else menu.appendChild(row);
+
+      const input = row.querySelector('#opexTrashPreference');
+      input?.addEventListener('change', event => setTrashConfirmationEnabled(Boolean(event.target.checked)));
+      row.addEventListener('click', event => event.stopPropagation());
+    }
+
+    syncTrashPreferenceControl();
     return true;
+  }
+
+  function installOutsideMenuClose() {
+    if (document.documentElement.dataset.opexMenuOutsideClose === 'true') return;
+    document.documentElement.dataset.opexMenuOutsideClose = 'true';
+
+    document.addEventListener('pointerdown', event => {
+      const menu = document.querySelector('.dropdown.open');
+      if (!menu) return;
+      const userBox = menu.closest('.userbox');
+      if (menu.contains(event.target) || userBox?.contains(event.target)) return;
+      menu.classList.remove('open');
+    });
   }
 
   function installOpenModalWrapper() {
@@ -119,11 +182,14 @@
   const boot = () => {
     attempts += 1;
     suppressLegacyAdminWarning();
+    installTrashClickGuard();
+    installOutsideMenuClose();
+    const menuReady = installUserMenuPreference();
     const openReady = installOpenModalWrapper();
-    const trashReady = installTrashWrapper();
     const saveReady = installSaveWrapper();
-    if ((!openReady || !trashReady || !saveReady) && attempts < 40) setTimeout(boot, 250);
+    if ((!menuReady || !openReady || !saveReady) && attempts < 80) setTimeout(boot, 250);
   };
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
   else boot();
 })();
