@@ -1,6 +1,28 @@
 (() => {
   'use strict';
 
+  const TRASH_CONFIRM_KEY = 'opex_confirm_trash';
+  const bypassTrashButtons = new WeakSet();
+
+  function installEnhancementStyles() {
+    if (document.getElementById('opexUserPreferenceStyles')) return;
+    const style = document.createElement('style');
+    style.id = 'opexUserPreferenceStyles';
+    style.textContent = `
+      .opex-menu-preference{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 14px;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08);color:#e8ebf7;cursor:default}
+      .opex-menu-pref-copy{display:flex;align-items:center;gap:9px;min-width:0;font-size:13px;line-height:1.25}
+      .opex-menu-pref-icon{flex:0 0 auto}
+      .opex-menu-switch{position:relative;display:inline-flex;flex:0 0 auto;margin:0!important;cursor:pointer}
+      .opex-menu-switch input{position:absolute;opacity:0;pointer-events:none}
+      .opex-menu-switch span{display:block;width:38px;height:22px;border-radius:999px;background:#65708b;position:relative;transition:.18s ease;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+      .opex-menu-switch span:after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.28);transition:.18s ease}
+      .opex-menu-switch input:checked+span{background:linear-gradient(135deg,#765df2,#4e87f2)}
+      .opex-menu-switch input:checked+span:after{transform:translateX(16px)}
+      .opex-confirm-card p{margin-bottom:19px!important}
+    `;
+    document.head.appendChild(style);
+  }
+
   function celebrateCompleted(title) {
     document.querySelector('.opex-celebration')?.remove();
     const layer = document.createElement('div');
@@ -28,6 +50,15 @@
     if (warning) warning.style.setProperty('display', 'none', 'important');
   }
 
+  function trashConfirmationEnabled() {
+    return localStorage.getItem(TRASH_CONFIRM_KEY) !== 'false';
+  }
+
+  function setTrashConfirmationEnabled(enabled) {
+    localStorage.setItem(TRASH_CONFIRM_KEY, enabled ? 'true' : 'false');
+    syncTrashPreferenceControl();
+  }
+
   function showTrashConfirmation(onConfirm) {
     document.querySelector('.opex-confirm-layer')?.remove();
     const layer = document.createElement('div');
@@ -36,10 +67,6 @@
       <div class="opex-confirm-card" role="dialog" aria-modal="true" aria-labelledby="opexTrashConfirmTitle">
         <h3 id="opexTrashConfirmTitle">Flytte tiltaket til papirkurv?</h3>
         <p>Tiltaket fjernes fra aktive visninger, men kan gjenopprettes senere av administrator.</p>
-        <label class="opex-confirm-remember">
-          <input type="checkbox" id="opexTrashDontAsk">
-          <span>Ikke spør meg igjen på denne enheten</span>
-        </label>
         <div class="opex-confirm-actions">
           <button type="button" class="btn secondary" data-confirm-cancel>Avbryt</button>
           <button type="button" class="btn danger" data-confirm-ok>Flytt til papirkurv</button>
@@ -51,34 +78,89 @@
     layer.querySelector('[data-confirm-cancel]')?.addEventListener('click', close);
     layer.addEventListener('click', event => { if (event.target === layer) close(); });
     layer.querySelector('[data-confirm-ok]')?.addEventListener('click', () => {
-      const dontAsk = Boolean(layer.querySelector('#opexTrashDontAsk')?.checked);
-      localStorage.setItem('opex_confirm_trash', dontAsk ? 'false' : 'true');
       close();
-      onConfirm(dontAsk);
+      onConfirm();
     });
   }
 
-  function installTrashWrapper() {
-    if (typeof window.moveToTrash !== 'function' || window.moveToTrash.__opexV1H) return false;
-    const original = window.moveToTrash;
-    const wrapped = function wrappedMoveToTrash(...args) {
-      const confirmationEnabled = localStorage.getItem('opex_confirm_trash') !== 'false';
-      if (!confirmationEnabled) return original.apply(this, args);
+  function isTrashButton(element) {
+    const button = element?.closest?.('button');
+    if (!button) return null;
+    const text = String(button.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    return text.includes('flytt til papirkurv') ? button : null;
+  }
 
+  function installTrashClickGuard() {
+    if (document.documentElement.dataset.opexTrashGuard === 'true') return;
+    document.documentElement.dataset.opexTrashGuard = 'true';
+
+    document.addEventListener('click', event => {
+      const button = isTrashButton(event.target);
+      if (!button) return;
+
+      if (bypassTrashButtons.has(button)) {
+        bypassTrashButtons.delete(button);
+        return;
+      }
+
+      if (!trashConfirmationEnabled()) return;
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
       showTrashConfirmation(() => {
-        const previous = localStorage.getItem('opex_confirm_trash');
-        localStorage.setItem('opex_confirm_trash', 'false');
-        try {
-          original.apply(this, args);
-        } finally {
-          if (previous === null) localStorage.removeItem('opex_confirm_trash');
-          else localStorage.setItem('opex_confirm_trash', previous);
-        }
+        bypassTrashButtons.add(button);
+        button.click();
       });
-    };
-    wrapped.__opexV1H = true;
-    window.moveToTrash = wrapped;
+    }, true);
+  }
+
+  function syncTrashPreferenceControl() {
+    const input = document.getElementById('opexTrashPreference');
+    if (input) input.checked = trashConfirmationEnabled();
+  }
+
+  function installUserMenuPreference() {
+    const menu = document.querySelector('.dropdown');
+    if (!menu) return false;
+
+    if (!document.getElementById('opexTrashPreferenceRow')) {
+      const row = document.createElement('div');
+      row.id = 'opexTrashPreferenceRow';
+      row.className = 'opex-menu-preference';
+      row.innerHTML = `
+        <div class="opex-menu-pref-copy">
+          <span class="opex-menu-pref-icon">🗑️</span>
+          <span>Bekreft før flytting til papirkurv</span>
+        </div>
+        <label class="opex-menu-switch" title="Bekreft før flytting til papirkurv">
+          <input type="checkbox" id="opexTrashPreference" aria-label="Bekreft før flytting til papirkurv">
+          <span aria-hidden="true"></span>
+        </label>`;
+
+      const adminItem = Array.from(menu.children).find(el => String(el.textContent || '').trim().toLowerCase().includes('admin'));
+      if (adminItem) menu.insertBefore(row, adminItem);
+      else menu.appendChild(row);
+
+      const input = row.querySelector('#opexTrashPreference');
+      input?.addEventListener('change', event => setTrashConfirmationEnabled(Boolean(event.target.checked)));
+      row.addEventListener('click', event => event.stopPropagation());
+    }
+
+    syncTrashPreferenceControl();
     return true;
+  }
+
+  function installOutsideMenuClose() {
+    if (document.documentElement.dataset.opexMenuOutsideClose === 'true') return;
+    document.documentElement.dataset.opexMenuOutsideClose = 'true';
+
+    document.addEventListener('pointerdown', event => {
+      const menu = document.querySelector('.dropdown.open');
+      if (!menu) return;
+      const userBox = menu.closest('.userbox');
+      if (menu.contains(event.target) || userBox?.contains(event.target)) return;
+      menu.classList.remove('open');
+    });
   }
 
   function installOpenModalWrapper() {
@@ -118,12 +200,16 @@
   let attempts = 0;
   const boot = () => {
     attempts += 1;
+    installEnhancementStyles();
     suppressLegacyAdminWarning();
+    installTrashClickGuard();
+    installOutsideMenuClose();
+    const menuReady = installUserMenuPreference();
     const openReady = installOpenModalWrapper();
-    const trashReady = installTrashWrapper();
     const saveReady = installSaveWrapper();
-    if ((!openReady || !trashReady || !saveReady) && attempts < 40) setTimeout(boot, 250);
+    if ((!menuReady || !openReady || !saveReady) && attempts < 80) setTimeout(boot, 250);
   };
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
   else boot();
 })();
