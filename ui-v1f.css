@@ -1,4 +1,4 @@
-/* OpEx V1F — split-screen/modal resilience + completion celebration */
+/* OpEx V1G — compact split-screen modal + completion celebration */
 .modalwrap{
   overflow:hidden;
   overscroll-behavior:contain;
@@ -17,11 +17,11 @@
 }
 .modalhead .btn{
   flex:0 0 auto;
-  min-width:44px;
-  min-height:44px;
+  min-width:40px;
+  min-height:40px;
   display:grid;
   place-items:center;
-  font-size:24px;
+  font-size:22px;
   line-height:1;
 }
 .modalbody{
@@ -31,7 +31,6 @@
   overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;
 }
-.admin-warning{flex:0 0 auto}
 .modalfoot{
   position:relative!important;
   bottom:auto!important;
@@ -39,8 +38,30 @@
   flex:0 0 auto;
 }
 
-/* Laptop split-screen: hard-contain the whole sheet inside the viewport.
-   Header and footer never leave the screen; only modalbody scrolls. */
+/* Compact replacement for the old large data-rule box. */
+.trash-confirm-row{
+  display:flex!important;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin:12px 0 0!important;
+  padding:10px 12px!important;
+  border:1px solid rgba(90,102,166,.14)!important;
+  border-radius:12px!important;
+  background:rgba(90,102,166,.045)!important;
+  color:#35405f!important;
+}
+.trash-confirm-copy{min-width:0;display:grid;gap:2px}
+.trash-confirm-copy strong{font-size:12px;color:#303a58}
+.trash-confirm-copy span{font-size:11px;color:#77809b;line-height:1.25}
+.trash-switch{position:relative;display:inline-flex;flex:0 0 auto;cursor:pointer;margin:0!important}
+.trash-switch input{position:absolute;opacity:0;pointer-events:none}
+.trash-switch span{display:block;width:42px;height:24px;border-radius:999px;background:#cdd3df;position:relative;transition:.18s ease;box-shadow:inset 0 0 0 1px rgba(60,70,110,.08)}
+.trash-switch span:after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(40,46,78,.24);transition:.18s ease}
+.trash-switch input:checked+span{background:linear-gradient(135deg,#765df2,#4e87f2)}
+.trash-switch input:checked+span:after{transform:translateX(18px)}
+
+/* Laptop split-screen: keep the complete modal inside the viewport, but use space efficiently. */
 @media (min-width:621px) and (max-width:1100px){
   .modalwrap,
   .modalwrap.open{
@@ -48,7 +69,7 @@
     inset:0!important;
     width:100vw!important;
     height:100dvh!important;
-    padding:10px!important;
+    padding:6px!important;
     align-items:stretch!important;
     justify-content:stretch!important;
     overflow:hidden!important;
@@ -59,51 +80,70 @@
     transform:none!important;
     margin:0 auto!important;
     width:100%!important;
-    max-width:760px!important;
-    height:calc(100dvh - 20px)!important;
-    max-height:calc(100dvh - 20px)!important;
+    max-width:900px!important;
+    height:calc(100dvh - 12px)!important;
+    max-height:calc(100dvh - 12px)!important;
     min-height:0!important;
-    border-radius:18px!important;
+    border-radius:16px!important;
     display:flex!important;
     flex-direction:column!important;
     overflow:hidden!important;
   }
   .modalhead{
-    position:relative!important;
-    inset:auto!important;
-    transform:none!important;
     flex:0 0 auto!important;
-    padding:12px 14px!important;
+    padding:8px 12px!important;
+    min-height:48px!important;
   }
+  .modalhead h3{font-size:16px!important;margin:0!important}
+  .modalhead .btn{min-width:36px!important;min-height:36px!important;font-size:20px!important;padding:4px!important}
   .modalbody{
-    position:relative!important;
     flex:1 1 0!important;
     min-height:0!important;
     max-height:none!important;
     overflow-x:hidden!important;
     overflow-y:auto!important;
-    padding:14px!important;
+    padding:10px 12px!important;
   }
+  .formgrid{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    gap:8px 10px!important;
+  }
+  .formgrid .full{grid-column:1/-1!important}
+  .modalbody label{font-size:11px!important;margin-bottom:3px!important}
+  .modalbody input,.modalbody select{min-height:38px!important;padding:7px 9px!important;font-size:14px!important}
+  .modalbody textarea{min-height:58px!important;padding:8px 9px!important;font-size:14px!important}
+  .lifecycle-note{font-size:10px!important;margin-top:3px!important}
+  .trash-confirm-row{grid-column:1/-1;margin-top:8px!important;padding:8px 10px!important}
   .modalfoot{
-    position:relative!important;
-    inset:auto!important;
-    transform:none!important;
-    flex:0 0 auto!important;
-    padding:11px 14px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:8px!important;
+    flex-wrap:wrap!important;
+    padding:8px 12px!important;
+    min-height:52px!important;
   }
-  .admin-warning{margin:10px 14px 0!important}
-  .formgrid{grid-template-columns:minmax(0,1fr)!important;gap:11px!important}
-  .formgrid .full{grid-column:1!important}
-  .modalfoot{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:8px!important}
-  .modal-actions{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:8px!important}
-  .modalfoot>div:last-child{display:grid!important;grid-template-columns:1fr 1fr!important;width:100%!important}
-  .modalfoot .btn{width:100%!important;min-width:0!important}
+  .modal-actions{display:flex!important;gap:8px!important;flex:0 1 auto!important}
+  .modal-actions .btn{width:auto!important;min-height:36px!important;padding:7px 11px!important;font-size:12px!important}
+  .modalfoot>div:last-child{display:flex!important;gap:8px!important;width:auto!important;margin-left:auto!important}
+  .modalfoot>div:last-child .btn{width:auto!important;min-width:105px!important;min-height:36px!important;padding:7px 14px!important}
+}
+
+/* Narrow laptop panes: keep two columns as long as there is usable space. */
+@media (min-width:621px) and (max-width:760px){
+  .modalwrap.open .modal{max-width:none!important}
+  .formgrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:7px 8px!important}
+  .modalbody{padding:9px 10px!important}
+  .modalbody input,.modalbody select{font-size:13px!important}
+  .modalfoot>div:last-child .btn{min-width:94px!important}
 }
 
 @media (max-width:620px){
   .modalwrap{padding:0!important;align-items:flex-end!important}
   .modal{width:100%!important;max-height:96dvh!important;border-radius:22px 22px 0 0!important}
+  .formgrid{grid-template-columns:minmax(0,1fr)!important}
   .modalfoot>div:last-child{grid-template-columns:1fr!important}
+  .trash-confirm-row{margin:10px 0 0!important}
 }
 
 .opex-celebration{
