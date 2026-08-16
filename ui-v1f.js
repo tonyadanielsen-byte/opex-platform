@@ -4,6 +4,25 @@
   const TRASH_CONFIRM_KEY = 'opex_confirm_trash';
   const bypassTrashButtons = new WeakSet();
 
+  function installEnhancementStyles() {
+    if (document.getElementById('opexUserPreferenceStyles')) return;
+    const style = document.createElement('style');
+    style.id = 'opexUserPreferenceStyles';
+    style.textContent = `
+      .opex-menu-preference{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 14px;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08);color:#e8ebf7;cursor:default}
+      .opex-menu-pref-copy{display:flex;align-items:center;gap:9px;min-width:0;font-size:13px;line-height:1.25}
+      .opex-menu-pref-icon{flex:0 0 auto}
+      .opex-menu-switch{position:relative;display:inline-flex;flex:0 0 auto;margin:0!important;cursor:pointer}
+      .opex-menu-switch input{position:absolute;opacity:0;pointer-events:none}
+      .opex-menu-switch span{display:block;width:38px;height:22px;border-radius:999px;background:#65708b;position:relative;transition:.18s ease;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+      .opex-menu-switch span:after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.28);transition:.18s ease}
+      .opex-menu-switch input:checked+span{background:linear-gradient(135deg,#765df2,#4e87f2)}
+      .opex-menu-switch input:checked+span:after{transform:translateX(16px)}
+      .opex-confirm-card p{margin-bottom:19px!important}
+    `;
+    document.head.appendChild(style);
+  }
+
   function celebrateCompleted(title) {
     document.querySelector('.opex-celebration')?.remove();
     const layer = document.createElement('div');
@@ -181,6 +200,7 @@
   let attempts = 0;
   const boot = () => {
     attempts += 1;
+    installEnhancementStyles();
     suppressLegacyAdminWarning();
     installTrashClickGuard();
     installOutsideMenuClose();
