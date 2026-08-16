@@ -23,36 +23,73 @@
     setTimeout(() => layer.remove(), 1800);
   }
 
-  function compactTrashConfirmation() {
+  function suppressLegacyAdminWarning() {
     const warning = document.getElementById('adminWarning');
-    const body = document.querySelector('#modal .modalbody');
-    if (!warning || !body || warning.dataset.compact === 'true') return;
+    if (warning) warning.style.setProperty('display', 'none', 'important');
+  }
 
-    warning.dataset.compact = 'true';
-    warning.classList.add('trash-confirm-row');
-    warning.innerHTML = `
-      <div class="trash-confirm-copy">
-        <strong>Bekreft før papirkurv</strong>
-        <span>Vis spørsmål før et tiltak flyttes.</span>
-      </div>
-      <label class="trash-switch" aria-label="Vis bekreftelse før flytting til papirkurv">
-        <input type="checkbox" id="modalTrashConfirm" onchange="setTrashConfirm(this.checked)">
-        <span aria-hidden="true"></span>
-      </label>`;
-    body.appendChild(warning);
+  function showTrashConfirmation(onConfirm) {
+    document.querySelector('.opex-confirm-layer')?.remove();
+    const layer = document.createElement('div');
+    layer.className = 'opex-confirm-layer';
+    layer.innerHTML = `
+      <div class="opex-confirm-card" role="dialog" aria-modal="true" aria-labelledby="opexTrashConfirmTitle">
+        <h3 id="opexTrashConfirmTitle">Flytte tiltaket til papirkurv?</h3>
+        <p>Tiltaket fjernes fra aktive visninger, men kan gjenopprettes senere av administrator.</p>
+        <label class="opex-confirm-remember">
+          <input type="checkbox" id="opexTrashDontAsk">
+          <span>Ikke spør meg igjen på denne enheten</span>
+        </label>
+        <div class="opex-confirm-actions">
+          <button type="button" class="btn secondary" data-confirm-cancel>Avbryt</button>
+          <button type="button" class="btn danger" data-confirm-ok>Flytt til papirkurv</button>
+        </div>
+      </div>`;
+    document.body.appendChild(layer);
 
-    if (typeof window.syncTrashConfirm === 'function') window.syncTrashConfirm();
+    const close = () => layer.remove();
+    layer.querySelector('[data-confirm-cancel]')?.addEventListener('click', close);
+    layer.addEventListener('click', event => { if (event.target === layer) close(); });
+    layer.querySelector('[data-confirm-ok]')?.addEventListener('click', () => {
+      const dontAsk = Boolean(layer.querySelector('#opexTrashDontAsk')?.checked);
+      localStorage.setItem('opex_confirm_trash', dontAsk ? 'false' : 'true');
+      close();
+      onConfirm(dontAsk);
+    });
+  }
+
+  function installTrashWrapper() {
+    if (typeof window.moveToTrash !== 'function' || window.moveToTrash.__opexV1H) return false;
+    const original = window.moveToTrash;
+    const wrapped = function wrappedMoveToTrash(...args) {
+      const confirmationEnabled = localStorage.getItem('opex_confirm_trash') !== 'false';
+      if (!confirmationEnabled) return original.apply(this, args);
+
+      showTrashConfirmation(() => {
+        const previous = localStorage.getItem('opex_confirm_trash');
+        localStorage.setItem('opex_confirm_trash', 'false');
+        try {
+          original.apply(this, args);
+        } finally {
+          if (previous === null) localStorage.removeItem('opex_confirm_trash');
+          else localStorage.setItem('opex_confirm_trash', previous);
+        }
+      });
+    };
+    wrapped.__opexV1H = true;
+    window.moveToTrash = wrapped;
+    return true;
   }
 
   function installOpenModalWrapper() {
-    if (typeof window.openModal !== 'function' || window.openModal.__opexV1G) return false;
+    if (typeof window.openModal !== 'function' || window.openModal.__opexV1H) return false;
     const original = window.openModal;
     const wrapped = function wrappedOpenModal(...args) {
       const result = original.apply(this, args);
-      compactTrashConfirmation();
+      suppressLegacyAdminWarning();
       return result;
     };
-    wrapped.__opexV1G = true;
+    wrapped.__opexV1H = true;
     window.openModal = wrapped;
     return true;
   }
@@ -81,10 +118,11 @@
   let attempts = 0;
   const boot = () => {
     attempts += 1;
-    compactTrashConfirmation();
+    suppressLegacyAdminWarning();
     const openReady = installOpenModalWrapper();
+    const trashReady = installTrashWrapper();
     const saveReady = installSaveWrapper();
-    if ((!openReady || !saveReady) && attempts < 40) setTimeout(boot, 250);
+    if ((!openReady || !trashReady || !saveReady) && attempts < 40) setTimeout(boot, 250);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
   else boot();
