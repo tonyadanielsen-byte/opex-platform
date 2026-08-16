@@ -23,6 +23,40 @@
     setTimeout(() => layer.remove(), 1800);
   }
 
+  function compactTrashConfirmation() {
+    const warning = document.getElementById('adminWarning');
+    const body = document.querySelector('#modal .modalbody');
+    if (!warning || !body || warning.dataset.compact === 'true') return;
+
+    warning.dataset.compact = 'true';
+    warning.classList.add('trash-confirm-row');
+    warning.innerHTML = `
+      <div class="trash-confirm-copy">
+        <strong>Bekreft før papirkurv</strong>
+        <span>Vis spørsmål før et tiltak flyttes.</span>
+      </div>
+      <label class="trash-switch" aria-label="Vis bekreftelse før flytting til papirkurv">
+        <input type="checkbox" id="modalTrashConfirm" onchange="setTrashConfirm(this.checked)">
+        <span aria-hidden="true"></span>
+      </label>`;
+    body.appendChild(warning);
+
+    if (typeof window.syncTrashConfirm === 'function') window.syncTrashConfirm();
+  }
+
+  function installOpenModalWrapper() {
+    if (typeof window.openModal !== 'function' || window.openModal.__opexV1G) return false;
+    const original = window.openModal;
+    const wrapped = function wrappedOpenModal(...args) {
+      const result = original.apply(this, args);
+      compactTrashConfirmation();
+      return result;
+    };
+    wrapped.__opexV1G = true;
+    window.openModal = wrapped;
+    return true;
+  }
+
   function installSaveWrapper() {
     if (typeof window.saveTask !== 'function' || window.saveTask.__opexV1F) return false;
     const original = window.saveTask;
@@ -47,7 +81,10 @@
   let attempts = 0;
   const boot = () => {
     attempts += 1;
-    if (!installSaveWrapper() && attempts < 40) setTimeout(boot, 250);
+    compactTrashConfirmation();
+    const openReady = installOpenModalWrapper();
+    const saveReady = installSaveWrapper();
+    if ((!openReady || !saveReady) && attempts < 40) setTimeout(boot, 250);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
   else boot();
