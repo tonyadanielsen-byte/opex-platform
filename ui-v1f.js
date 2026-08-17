@@ -54,9 +54,41 @@
   function renderCommentItems(container,value){const rows=Object.entries(value||{}).map(([id,c])=>({id,...c})).sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||'')));container.innerHTML=rows.length?rows.map(c=>`<div class="opex-comment"><div class="opex-comment-meta"><strong>${escapeHtml(c.authorName||'Bruker')}</strong><span>${escapeHtml(formatCommentTime(c.createdAt))}</span></div><div class="opex-comment-text">${escapeHtml(c.text)}</div></div>`).join(''):'<div class="opex-comment-empty">Ingen kommentarer ennå.</div>';container.scrollTop=container.scrollHeight;}
   async function mountComments(taskId){stopComments();if(!taskId)return;const grid=document.querySelector('#modal .formgrid')||document.querySelector('.modalbody .formgrid');if(!grid)return;const section=document.createElement('section');section.id='opexComments';section.className='opex-comments';section.innerHTML=`<div class="opex-comments-head"><strong>💬 Kommentarer / ny informasjon</strong><span>Historikk lagres med bruker og tidspunkt</span></div><div class="opex-comment-compose"><textarea id="opexCommentText" placeholder="Skriv kommentar eller ny informasjon…" maxlength="1200"></textarea><button type="button" class="btn primary" id="opexAddComment">Legg til</button></div><div class="opex-comment-list" id="opexCommentList"><div class="opex-comment-empty">Laster kommentarer…</div></div>`;grid.appendChild(section);const ref=firebase.database().ref(`/taskComments/${taskId}`);const handler=snap=>renderCommentItems(section.querySelector('#opexCommentList'),snap.val());ref.on('value',handler);stopCommentListener=()=>ref.off('value',handler);section.querySelector('#opexAddComment')?.addEventListener('click',async()=>{const textarea=section.querySelector('#opexCommentText');const text=String(textarea?.value||'').trim();const user=currentUser();if(!text||!user)return;const button=section.querySelector('#opexAddComment');button.disabled=true;try{await ref.push({text,authorUid:user.uid,authorName:USER_NAMES[user.uid]||user.email||'Bruker',createdAt:new Date().toISOString()});textarea.value='';}finally{button.disabled=false;}});}
 
-  function installOpenModalWrapper(){if(typeof window.openModal!=='function'||window.openModal.__opexV1H)return false;const original=window.openModal;const wrapped=function wrappedOpenModal(...args){const result=original.apply(this,args);suppressLegacyAdminWarning();activeTaskId=null;setTimeout(async()=>{activeTaskId=await resolveTaskId(args[0]);await mountComments(activeTaskId);},80);return result;};wrapped.__opexV1H=true;window.openModal=wrapped;return true;}
+  function installCommentModalHook(){
+    if(document.documentElement.dataset.opexCommentModalHook==='true')return true;
+    document.documentElement.dataset.opexCommentModalHook='true';
+    const observer=new MutationObserver(()=>{
+      const modal=document.getElementById('modal');
+      if(!modal?.classList.contains('open')){if(activeTaskId){activeTaskId=null;stopComments();}return;}
+      if(document.getElementById('opexComments'))return;
+      const candidate=document.getElementById('m_id')?.value||modal.dataset.taskId||'';
+      setTimeout(async()=>{
+        if(document.getElementById('opexComments'))return;
+        activeTaskId=await resolveTaskId(candidate);
+        if(activeTaskId)await mountComments(activeTaskId);
+      },40);
+    });
+    observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','value']});
+    return true;
+  }
+  function installOpenModalWrapper(){
+    if(typeof window.openModal!=='function')return false;
+    if(window.openModal.__opexCommentsHook)return true;
+    const original=window.openModal;
+    const wrapped=function wrappedOpenModal(...args){
+      const result=original.apply(this,args);
+      suppressLegacyAdminWarning();
+      activeTaskId=null;
+      setTimeout(async()=>{activeTaskId=await resolveTaskId(args[0]);await mountComments(activeTaskId);},80);
+      return result;
+    };
+    wrapped.__opexCommentsHook=true;
+    wrapped.__opexV1H=true;
+    window.openModal=wrapped;
+    return true;
+  }
   function installSaveWrapper(){if(typeof window.saveTask!=='function'||window.saveTask.__opexV1F)return false;const original=window.saveTask;const wrapped=function wrappedSaveTask(...args){const status=document.getElementById('m_status')?.value?.trim();const title=document.getElementById('m_tittel')?.value?.trim();const shouldCelebrate=status==='Fullført'&&Boolean(title);const result=original.apply(this,args);if(shouldCelebrate){setTimeout(()=>{const modalClosed=!document.getElementById('modal')?.classList.contains('open');if(modalClosed)celebrateCompleted(`${title} er fullført. Sterkt jobbet! 💪`);},700);}return result;};wrapped.__opexV1F=true;window.saveTask=wrapped;return true;}
 
-  let attempts=0;const boot=()=>{attempts+=1;installEnhancementStyles();suppressLegacyAdminWarning();installTrashClickGuard();installOutsideMenuClose();const menuReady=installUserMenuPreference();const openReady=installOpenModalWrapper();const saveReady=installSaveWrapper();if((!menuReady||!openReady||!saveReady)&&attempts<80)setTimeout(boot,250);};
+  let attempts=0;const boot=()=>{attempts+=1;installEnhancementStyles();suppressLegacyAdminWarning();installTrashClickGuard();installOutsideMenuClose();installCommentModalHook();const menuReady=installUserMenuPreference();const openReady=installOpenModalWrapper();const saveReady=installSaveWrapper();if((!menuReady||!openReady||!saveReady)&&attempts<80)setTimeout(boot,250);};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
