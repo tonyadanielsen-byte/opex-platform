@@ -1,4 +1,4 @@
-const CACHE_NAME = "opex-shell-v2.9.10-comments-v33";
+const CACHE_NAME = "opex-shell-v2.9.11-comments-v34";
 const APP_SHELL = [
   "./", "./index.html", "./manifest.webmanifest", "./push-v1a.js", "./push-deeplink-v1d.js", "./ui-v1f.css", "./ui-v1f.js",
   "./icons/nortura-logo.png", "./icons/opex-icon-192.png", "./icons/opex-icon-512.png", "./icons/opex-status-badge-v2.png"
@@ -58,7 +58,7 @@ function injectPushModule(response) {
     let injected = html.includes("push-v1a.js") ? html : html.replace("</body>", '<script src="./push-v1a.js"></script></body>');
     if (!injected.includes("push-deeplink-v1d.js")) injected = injected.replace("</body>", '<script src="./push-deeplink-v1d.js"></script></body>');
     if (!injected.includes("ui-v1f.css")) injected = injected.replace("</head>", '<link rel="stylesheet" href="./ui-v1f.css?v=1"></head>');
-    if (!injected.includes("ui-v1f.js")) injected = injected.replace("</body>", '<script src="./ui-v1f.js?v=1"></script></body>');
+    if (!injected.includes("ui-v1f.js")) injected = injected.replace("</body>", '<script src="./ui-v1f.js?v=34"></script></body>');
     const headers = new Headers(response.headers); headers.delete("content-length");
     return new Response(injected, { status: response.status, statusText: response.statusText, headers });
   });
