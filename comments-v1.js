@@ -1,13 +1,8 @@
 (() => {
   'use strict';
 
-  const USER_NAMES = Object.freeze({
-    'TJKI3zlDKSR7jvFXksVFgEgjS432': 'Tony Danielsen',
-    'gibm3aDi1KWlNyl7P3jTktQoGsM2': 'Kenneth Nordbakk',
-    'lJ7bn7HkbcZnhDoxfaBYQKEFL083': 'Erling Magnussen'
-  });
-
-  let stopCommentListener = null;
+  const FUNCTIONS_SDK = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js';
+  let functionsPromise = null;
 
   function installStyles() {
     if (document.getElementById('opex-comments-styles-v1')) return;
@@ -30,10 +25,6 @@
     document.head.appendChild(style);
   }
 
-  function currentUser() {
-    return window.firebase?.auth?.()?.currentUser || null;
-  }
-
   function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
   }
@@ -47,25 +38,62 @@
   }
 
   function stopComments() {
-    if (typeof stopCommentListener === 'function') stopCommentListener();
-    stopCommentListener = null;
     document.getElementById('opexComments')?.remove();
   }
 
-  function renderCommentItems(container, value) {
-    const rows = Object.entries(value || {})
-      .map(([id, comment]) => ({ id, ...comment }))
-      .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
-
-    container.innerHTML = rows.length
-      ? rows.map(comment => `<div class="opex-comment"><div class="opex-comment-meta"><strong>${escapeHtml(comment.authorName || 'Bruker')}</strong><span>${escapeHtml(formatCommentTime(comment.createdAt))}</span></div><div class="opex-comment-text">${escapeHtml(comment.text)}</div></div>`).join('')
+  function renderCommentItems(container, rows) {
+    const comments = Array.isArray(rows) ? rows.slice().sort((a, b) => String(a?.createdAt || '').localeCompare(String(b?.createdAt || ''))) : [];
+    container.innerHTML = comments.length
+      ? comments.map(comment => `<div class="opex-comment"><div class="opex-comment-meta"><strong>${escapeHtml(comment.authorName || 'Bruker')}</strong><span>${escapeHtml(formatCommentTime(comment.createdAt))}</span></div><div class="opex-comment-text">${escapeHtml(comment.text)}</div></div>`).join('')
       : '<div class="opex-comment-empty">Ingen kommentarer ennå.</div>';
     container.scrollTop = container.scrollHeight;
   }
 
+  function loadFunctionsSdk() {
+    if (window.firebase?.functions) return Promise.resolve();
+    if (functionsPromise) return functionsPromise;
+    functionsPromise = new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[src="${FUNCTIONS_SDK}"]`);
+      if (existing) {
+        existing.addEventListener('load', resolve, { once: true });
+        existing.addEventListener('error', reject, { once: true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = FUNCTIONS_SDK;
+      script.async = true;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error('Kunne ikke laste Firebase Functions SDK'));
+      document.head.appendChild(script);
+    }).catch(error => {
+      functionsPromise = null;
+      throw error;
+    });
+    return functionsPromise;
+  }
+
+  async function callFunction(name, data) {
+    await loadFunctionsSdk();
+    const fn = firebase.app().functions('europe-west1').httpsCallable(name);
+    const result = await fn(data);
+    return result?.data || {};
+  }
+
+  async function loadComments(taskId, container) {
+    container.innerHTML = '<div class="opex-comment-empty">Laster kommentarer…</div>';
+    try {
+      const result = await callFunction('getTaskCommentsV1', { taskId });
+      renderCommentItems(container, result.comments || []);
+    } catch (error) {
+      console.error('[OpEx Comments] Load failed:', error);
+      container.innerHTML = '<div class="opex-comment-empty">Kunne ikke laste kommentarer. Prøv å lukke og åpne tiltaket igjen.</div>';
+      if (typeof window.toast === 'function') window.toast('Kunne ikke laste kommentarer: ' + (error?.message || 'ukjent feil'), true);
+    }
+  }
+
   function mountComments(taskId) {
     stopComments();
-    if (!taskId || !window.firebase?.database) return;
+    if (!taskId) return;
 
     const grid = document.querySelector('#modal .formgrid');
     if (!grid) return;
@@ -76,31 +104,28 @@
     section.innerHTML = `<div class="opex-comments-head"><strong>💬 Kommentarer / ny informasjon</strong><span>Historikk lagres med bruker og tidspunkt</span></div><div class="opex-comment-compose"><textarea id="opexCommentText" placeholder="Skriv kommentar eller ny informasjon…" maxlength="1200"></textarea><button type="button" class="btn primary" id="opexAddComment">Legg til</button></div><div class="opex-comment-list" id="opexCommentList"><div class="opex-comment-empty">Laster kommentarer…</div></div>`;
     grid.appendChild(section);
 
-    const ref = firebase.database().ref(`/taskComments/${taskId}`);
-    const handler = snapshot => renderCommentItems(section.querySelector('#opexCommentList'), snapshot.val());
-    ref.on('value', handler);
-    stopCommentListener = () => ref.off('value', handler);
+    const list = section.querySelector('#opexCommentList');
+    loadComments(taskId, list);
 
     section.querySelector('#opexAddComment')?.addEventListener('click', async () => {
       const textarea = section.querySelector('#opexCommentText');
       const text = String(textarea?.value || '').trim();
-      const user = currentUser();
-      if (!text || !user) return;
+      if (!text) return;
 
       const button = section.querySelector('#opexAddComment');
       button.disabled = true;
+      button.textContent = 'Lagrer…';
       try {
-        await ref.push({
-          text,
-          authorUid: user.uid,
-          authorName: USER_NAMES[user.uid] || user.email || 'Bruker',
-          createdAt: new Date().toISOString()
-        });
+        await callFunction('addTaskCommentV1', { taskId, text });
         textarea.value = '';
+        await loadComments(taskId, list);
+        if (typeof window.toast === 'function') window.toast('Kommentar lagt til ✓');
       } catch (error) {
+        console.error('[OpEx Comments] Save failed:', error);
         if (typeof window.toast === 'function') window.toast('Kunne ikke lagre kommentaren: ' + (error?.message || 'ukjent feil'), true);
       } finally {
         button.disabled = false;
+        button.textContent = 'Legg til';
       }
     });
   }
