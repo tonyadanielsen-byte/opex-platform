@@ -42,6 +42,17 @@
     if (warning) warning.style.setProperty('display', 'none', 'important');
   }
 
+  function syncNextStepField(isExistingTask) {
+    const field = document.getElementById('m_nestesteg');
+    const row = field?.closest('.full');
+    if (!field || !row) return;
+    row.style.display = isExistingTask ? 'none' : '';
+    field.required = !isExistingTask;
+    field.setAttribute('aria-required', String(!isExistingTask));
+    const label = row.querySelector('label');
+    if (label) label.textContent = isExistingTask ? 'Neste steg' : 'Neste steg *';
+  }
+
   function trashConfirmationEnabled() {
     return localStorage.getItem(TRASH_CONFIRM_KEY) !== 'false';
   }
@@ -127,22 +138,32 @@
 
   function installOpenModalWrapper() {
     if (typeof window.openModal !== 'function') return false;
-    if (window.openModal.__opexUiV34) return true;
+    if (window.openModal.__opexUiV35) return true;
     const original = window.openModal;
     const wrapped = function wrappedOpenModal(...args) {
       const result = original.apply(this, args);
       suppressLegacyAdminWarning();
+      const isExistingTask = Boolean(String(args[0] || '').trim());
+      syncNextStepField(isExistingTask);
       return result;
     };
-    wrapped.__opexUiV34 = true;
+    wrapped.__opexUiV35 = true;
     window.openModal = wrapped;
     return true;
   }
 
   function installSaveWrapper() {
-    if (typeof window.saveTask !== 'function' || window.saveTask.__opexV1F) return false;
+    if (typeof window.saveTask !== 'function' || window.saveTask.__opexV35) return false;
     const original = window.saveTask;
     const wrapped = function wrappedSaveTask(...args) {
+      const nextStep = document.getElementById('m_nestesteg');
+      const nextStepVisible = nextStep?.closest('.full')?.style.display !== 'none';
+      if (nextStepVisible && !String(nextStep?.value || '').trim()) {
+        if (typeof window.toast === 'function') window.toast('Fyll ut Neste steg før tiltaket opprettes', true);
+        nextStep?.focus();
+        return;
+      }
+
       const status = document.getElementById('m_status')?.value?.trim();
       const title = document.getElementById('m_tittel')?.value?.trim();
       const shouldCelebrate = status === 'Fullført' && Boolean(title);
@@ -155,7 +176,7 @@
       }
       return result;
     };
-    wrapped.__opexV1F = true;
+    wrapped.__opexV35 = true;
     window.saveTask = wrapped;
     return true;
   }
