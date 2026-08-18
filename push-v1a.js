@@ -36,7 +36,7 @@
   function loadCommentsModule() {
     if (document.querySelector('script[data-opex-comments-v1]')) return;
     const script = document.createElement('script');
-    script.src = './comments-v1.js?v=31';
+    script.src = './comments-v1.js?v=33';
     script.async = true;
     script.dataset.opexCommentsV1 = 'true';
     script.onerror = () => console.error('[OpEx] Kunne ikke laste comments-v1.js');
@@ -48,6 +48,7 @@
     return new Promise((resolve, reject) => {
       const existing = document.querySelector(`script[src="${MESSAGING_SDK}"]`);
       if (existing) {
+        if (window.firebase?.messaging) return resolve();
         existing.addEventListener('load', resolve, { once: true });
         existing.addEventListener('error', reject, { once: true });
         return;
