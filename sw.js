@@ -1,4 +1,4 @@
-const CACHE_NAME = "opex-shell-v2.9.12-ux-v35";
+const CACHE_NAME = "opex-shell-v2.9.13-activity-v36";
 const APP_SHELL = [
   "./", "./index.html", "./manifest.webmanifest", "./push-v1a.js", "./push-deeplink-v1d.js", "./ui-v1f.css", "./ui-v1f.js",
   "./icons/nortura-logo.png", "./icons/opex-icon-192.png", "./icons/opex-icon-512.png", "./icons/opex-status-badge-v2.png"
@@ -74,7 +74,7 @@ self.addEventListener("fetch", event => {
     event.respondWith(fetch(event.request).then(response => { const copy=response.clone(); caches.open(CACHE_NAME).then(cache => cache.put("./index.html", copy)); return injectPushModule(response); }).catch(() => caches.match("./index.html").then(injectPushModule)));
     return;
   }
-  if (["/push-v1a.js","/push-deeplink-v1d.js","/ui-v1f.css","/ui-v1f.js","/comments-v1.js"].some(suffix => requestUrl.pathname.endsWith(suffix))) {
+  if (["/push-v1a.js","/push-deeplink-v1d.js","/ui-v1f.css","/ui-v1f.js","/comments-v1.js","/activity-v1.js"].some(suffix => requestUrl.pathname.endsWith(suffix))) {
     event.respondWith(fetch(event.request).then(response => { const copy=response.clone(); caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)); return response; }).catch(() => caches.match(event.request)));
     return;
   }
