@@ -8,6 +8,7 @@ const UID_NAME = Object.freeze({
   'gibm3aDi1KWlNyl7P3jTktQoGsM2': 'Kenneth Nordbakk',
   'lJ7bn7HkbcZnhDoxfaBYQKEFL083': 'Erling Magnussen',
 });
+const ADMIN_UID = 'TJKI3zlDKSR7jvFXksVFgEgjS432';
 
 function clean(value) {
   return String(value ?? '').trim();
@@ -70,4 +71,31 @@ exports.addTaskCommentV1 = onCall({
   const ref = getDatabase().ref(`/taskComments/${taskId}`).push();
   await ref.set(comment);
   return { id: ref.key, comment };
+});
+
+exports.deleteTaskCommentV1 = onCall({
+  region: 'europe-west1',
+  memory: '256MiB',
+  timeoutSeconds: 30,
+  maxInstances: 2,
+}, async request => {
+  const uid = await assertAuthorized(request);
+  const taskId = clean(request.data?.taskId);
+  const commentId = clean(request.data?.commentId);
+
+  await assertTaskExists(taskId);
+  if (!commentId) throw new HttpsError('invalid-argument', 'Kommentar mangler.');
+
+  const ref = getDatabase().ref(`/taskComments/${taskId}/${commentId}`);
+  const snapshot = await ref.get();
+  if (!snapshot.exists()) throw new HttpsError('not-found', 'Kommentaren finnes ikke lenger.');
+
+  const comment = snapshot.val() || {};
+  const authorUid = clean(comment.authorUid);
+  if (uid !== ADMIN_UID && uid !== authorUid) {
+    throw new HttpsError('permission-denied', 'Du kan bare slette egne kommentarer.');
+  }
+
+  await ref.remove();
+  return { deleted: true, id: commentId };
 });
