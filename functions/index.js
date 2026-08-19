@@ -30,12 +30,44 @@ function collectTokensForUid(root, uid) {
   return [...new Set(Object.values(devices).map(d => d?.token?.trim()).filter(Boolean))].slice(0, 500);
 }
 
+function shouldRecordInApp(message) {
+  const eventType = clean(message?.eventType);
+  if (!eventType) return false;
+  if (eventType.startsWith('due-') || eventType.startsWith('overdue-')) return false;
+  return true;
+}
+
+async function recordActivityForUid(uid, message, excludeUid = null) {
+  if (!uid || (excludeUid && uid === excludeUid) || !shouldRecordInApp(message)) return;
+  const ref = getDatabase().ref(`/activityInbox/${uid}`).push();
+  const title = clean(message.title) || 'OpEx Hub';
+  const body = clean(message.body) || 'Du har en ny oppdatering.';
+  const link = clean(message.link) || (message.taskId ? taskLink(message.taskId) : APP_URL);
+  await ref.set({
+    title,
+    body,
+    link,
+    eventType: clean(message.eventType) || 'opex-event',
+    taskId: clean(message.taskId),
+    owner: clean(message.owner),
+    createdAt: new Date().toISOString(),
+    seenAt: null,
+  });
+}
+
 async function sendToUid(uid, message, excludeUid = null) {
   if (!uid) return { skipped: 'no-uid' };
   if (excludeUid && uid === excludeUid) {
     console.log('OpEx push skipped', { reason: 'self-action', uid, eventType: message.eventType, taskId: message.taskId });
     return { skipped: 'self-action', uid };
   }
+
+  try {
+    await recordActivityForUid(uid, message, excludeUid);
+  } catch (activityError) {
+    console.error('OpEx in-app activity write failed', { uid, eventType: message.eventType, taskId: message.taskId, activityError });
+  }
+
   const snapshot = await getDatabase().ref('/pushTokens').get();
   const tokens = collectTokensForUid(snapshot.val(), uid);
   if (!tokens.length) {

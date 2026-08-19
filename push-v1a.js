@@ -36,10 +36,20 @@
   function loadCommentsModule() {
     if (document.querySelector('script[data-opex-comments-v1]')) return;
     const script = document.createElement('script');
-    script.src = './comments-v1.js?v=33';
+    script.src = './comments-v1.js?v=36';
     script.async = true;
     script.dataset.opexCommentsV1 = 'true';
     script.onerror = () => console.error('[OpEx] Kunne ikke laste comments-v1.js');
+    document.head.appendChild(script);
+  }
+
+  function loadActivityModule() {
+    if (document.querySelector('script[data-opex-activity-v1]')) return;
+    const script = document.createElement('script');
+    script.src = './activity-v1.js?v=36';
+    script.async = true;
+    script.dataset.opexActivityV1 = 'true';
+    script.onerror = () => console.error('[OpEx] Kunne ikke laste activity-v1.js');
     document.head.appendChild(script);
   }
 
@@ -141,6 +151,7 @@
   function bootPush() {
     installMobileHeaderFix();
     loadCommentsModule();
+    loadActivityModule();
     ensureButtons();
     if (!window.firebase?.auth) return;
     firebase.auth().onAuthStateChanged(user => {if(user){ensureButtons();refreshExistingToken(user);}updateButtons();});

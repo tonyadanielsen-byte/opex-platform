@@ -10,7 +10,8 @@
     style.textContent = `
       .opex-comments{grid-column:1/-1;margin-top:6px;padding-top:14px;border-top:1px solid rgba(73,78,105,.13)}
       .opex-comments-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:9px}
-      .opex-comments-head strong{font-size:13px;color:#29324e}.opex-comments-head span{font-size:11px;color:#7a839d;text-align:right}
+      .opex-comments-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.opex-comments-head strong{font-size:13px;color:#29324e}.opex-comments-head span{font-size:11px;color:#7a839d;text-align:right}
+      .opex-comment-sort{font-size:11px!important;padding:5px 8px!important;border-radius:8px!important;min-height:0!important;color:#4c5673!important;background:#fff!important}
       .opex-comment-compose{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
       .opex-comment-compose textarea{min-height:58px!important;max-height:120px;resize:vertical}
       .opex-comment-compose button{min-height:42px;white-space:nowrap}
@@ -20,7 +21,7 @@
       .opex-comment-meta strong{font-size:11px;color:#4c5673}.opex-comment-text{font-size:12px;line-height:1.45;color:#29324e;white-space:pre-wrap;overflow-wrap:anywhere}
       .opex-comment-empty{font-size:11px;color:#858da3;padding:6px 2px}
       .opex-comment-error{font-size:11px;color:#b6424b;padding:8px 10px;border-radius:9px;background:#fff0f0;border:1px solid #f2c3c6}
-      @media(max-width:620px){.opex-comments-head{display:block}.opex-comments-head span{display:block;margin-top:3px;text-align:left}.opex-comment-compose{grid-template-columns:1fr}.opex-comment-compose button{width:100%}}
+      @media(max-width:620px){.opex-comments-head{display:block}.opex-comments-head span{display:block;margin-top:5px;text-align:left}.opex-comment-compose{grid-template-columns:1fr}.opex-comment-compose button{width:100%}.opex-comments-title{justify-content:space-between}.opex-comment-sort{max-width:145px}}
     `;
     document.head.appendChild(style);
   }
@@ -35,16 +36,39 @@
     return new Intl.DateTimeFormat('no-NO', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}).format(date);
   }
 
+  function currentUid() {
+    return String(window.firebase?.auth?.()?.currentUser?.uid || 'anonymous');
+  }
+
+  function sortStorageKey() {
+    return `opex_comment_sort_v1_${currentUid()}`;
+  }
+
+  function getSortOrder() {
+    const value = localStorage.getItem(sortStorageKey());
+    return value === 'oldest' ? 'oldest' : 'newest';
+  }
+
+  function setSortOrder(value) {
+    localStorage.setItem(sortStorageKey(), value === 'oldest' ? 'oldest' : 'newest');
+  }
+
   function stopComments() {
     document.getElementById('opexComments')?.remove();
   }
 
-  function renderCommentItems(container, rows) {
-    const comments = Array.isArray(rows) ? rows.slice().sort((a,b)=>String(a?.createdAt||'').localeCompare(String(b?.createdAt||''))) : [];
+  function renderCommentItems(container, rows, sortOrder = getSortOrder()) {
+    const comments = Array.isArray(rows) ? rows.slice() : [];
+    comments.sort((a,b) => {
+      const left = String(a?.createdAt || '');
+      const right = String(b?.createdAt || '');
+      return sortOrder === 'oldest' ? left.localeCompare(right) : right.localeCompare(left);
+    });
+    container.__opexCommentRows = Array.isArray(rows) ? rows.slice() : [];
     container.innerHTML = comments.length
       ? comments.map(comment => `<div class="opex-comment"><div class="opex-comment-meta"><strong>${escapeHtml(comment.authorName || 'Bruker')}</strong><span>${escapeHtml(formatCommentTime(comment.createdAt))}</span></div><div class="opex-comment-text">${escapeHtml(comment.text)}</div></div>`).join('')
       : '<div class="opex-comment-empty">Ingen kommentarer ennå.</div>';
-    container.scrollTop = container.scrollHeight;
+    container.scrollTop = sortOrder === 'oldest' ? container.scrollHeight : 0;
   }
 
   async function callFunction(name, data) {
@@ -74,11 +98,11 @@
     }
   }
 
-  async function loadComments(taskId, container) {
+  async function loadComments(taskId, container, sortOrder = getSortOrder()) {
     container.innerHTML = '<div class="opex-comment-empty">Laster kommentarer…</div>';
     try {
       const result = await callFunction('getTaskCommentsV1', {taskId});
-      renderCommentItems(container, result.comments || []);
+      renderCommentItems(container, result.comments || [], sortOrder);
     } catch (error) {
       console.error('[OpEx Comments] Load failed:', {taskId,error});
       container.innerHTML = `<div class="opex-comment-error">Kunne ikke laste kommentarer · ${escapeHtml(error?.message || 'ukjent feil')}</div>`;
@@ -92,15 +116,23 @@
     const grid = document.querySelector('#modal .formgrid');
     if (!grid) return;
 
+    const selectedSort = getSortOrder();
     const section = document.createElement('section');
     section.id = 'opexComments';
     section.className = 'opex-comments';
     section.dataset.taskId = taskId;
-    section.innerHTML = `<div class="opex-comments-head"><strong>💬 Kommentarer / ny informasjon</strong><span>Historikk lagres med bruker og tidspunkt</span></div><div class="opex-comment-compose"><textarea id="opexCommentText" placeholder="Skriv kommentar eller ny informasjon…" maxlength="1200"></textarea><button type="button" class="btn primary" id="opexAddComment">Legg til</button></div><div class="opex-comment-list" id="opexCommentList"><div class="opex-comment-empty">Laster kommentarer…</div></div>`;
+    section.innerHTML = `<div class="opex-comments-head"><div class="opex-comments-title"><strong>💬 Kommentarer / ny informasjon</strong><select class="opex-comment-sort" id="opexCommentSort" aria-label="Sorter kommentarer"><option value="newest"${selectedSort === 'newest' ? ' selected' : ''}>Nyeste først</option><option value="oldest"${selectedSort === 'oldest' ? ' selected' : ''}>Eldste først</option></select></div><span>Historikk lagres med bruker og tidspunkt</span></div><div class="opex-comment-compose"><textarea id="opexCommentText" placeholder="Skriv kommentar eller ny informasjon…" maxlength="1200"></textarea><button type="button" class="btn primary" id="opexAddComment">Legg til</button></div><div class="opex-comment-list" id="opexCommentList"><div class="opex-comment-empty">Laster kommentarer…</div></div>`;
     grid.appendChild(section);
 
     const list = section.querySelector('#opexCommentList');
-    loadComments(taskId, list);
+    const sortSelect = section.querySelector('#opexCommentSort');
+    loadComments(taskId, list, selectedSort);
+
+    sortSelect?.addEventListener('change', () => {
+      const value = sortSelect.value === 'oldest' ? 'oldest' : 'newest';
+      setSortOrder(value);
+      renderCommentItems(list, list.__opexCommentRows || [], value);
+    });
 
     section.querySelector('#opexAddComment')?.addEventListener('click', async () => {
       const textarea = section.querySelector('#opexCommentText');
@@ -112,7 +144,7 @@
       try {
         await callFunction('addTaskCommentV1', {taskId,text});
         textarea.value = '';
-        await loadComments(taskId, list);
+        await loadComments(taskId, list, sortSelect?.value || getSortOrder());
         if (typeof window.toast === 'function') window.toast('Kommentar lagt til ✓');
       } catch (error) {
         console.error('[OpEx Comments] Save failed:', {taskId,error});
@@ -128,7 +160,7 @@
   function installHooks() {
     installStyles();
     if (typeof window.openModal !== 'function') {setTimeout(installHooks,100);return;}
-    if (!window.openModal.__opexCommentsV33) {
+    if (!window.openModal.__opexCommentsV36) {
       const originalOpenModal = window.openModal;
       const wrappedOpenModal = function (...args) {
         const result = originalOpenModal.apply(this,args);
@@ -136,13 +168,13 @@
         setTimeout(() => mountComments(taskId),0);
         return result;
       };
-      wrappedOpenModal.__opexCommentsV33 = true;
+      wrappedOpenModal.__opexCommentsV36 = true;
       window.openModal = wrappedOpenModal;
     }
-    if (typeof window.closeModal === 'function' && !window.closeModal.__opexCommentsV33) {
+    if (typeof window.closeModal === 'function' && !window.closeModal.__opexCommentsV36) {
       const originalCloseModal = window.closeModal;
       const wrappedCloseModal = function (...args) {stopComments();return originalCloseModal.apply(this,args);};
-      wrappedCloseModal.__opexCommentsV33 = true;
+      wrappedCloseModal.__opexCommentsV36 = true;
       window.closeModal = wrappedCloseModal;
     }
   }
