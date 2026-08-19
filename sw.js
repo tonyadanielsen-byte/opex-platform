@@ -1,6 +1,6 @@
-const CACHE_NAME = "opex-shell-v2.9.13-activity-v36";
+const CACHE_NAME = "opex-shell-v2.9.14-v38";
 const APP_SHELL = [
-  "./", "./index.html", "./manifest.webmanifest", "./push-v1a.js", "./push-deeplink-v1d.js", "./ui-v1f.css", "./ui-v1f.js",
+  "./", "./index.html", "./manifest.webmanifest", "./push-v1a.js", "./push-deeplink-v1d.js", "./ui-v1f.css", "./ui-v1f.js", "./live-v38.css",
   "./icons/nortura-logo.png", "./icons/opex-icon-192.png", "./icons/opex-icon-512.png", "./icons/opex-status-badge-v2.png"
 ];
 
@@ -58,6 +58,7 @@ function injectPushModule(response) {
     let injected = html.includes("push-v1a.js") ? html : html.replace("</body>", '<script src="./push-v1a.js"></script></body>');
     if (!injected.includes("push-deeplink-v1d.js")) injected = injected.replace("</body>", '<script src="./push-deeplink-v1d.js"></script></body>');
     if (!injected.includes("ui-v1f.css")) injected = injected.replace("</head>", '<link rel="stylesheet" href="./ui-v1f.css?v=1"></head>');
+    if (!injected.includes("live-v38.css")) injected = injected.replace("</head>", '<link rel="stylesheet" href="./live-v38.css?v=38"></head>');
     if (!injected.includes("ui-v1f.js")) injected = injected.replace("</body>", '<script src="./ui-v1f.js?v=35"></script></body>');
     const headers = new Headers(response.headers); headers.delete("content-length");
     return new Response(injected, { status: response.status, statusText: response.statusText, headers });
@@ -74,7 +75,7 @@ self.addEventListener("fetch", event => {
     event.respondWith(fetch(event.request).then(response => { const copy=response.clone(); caches.open(CACHE_NAME).then(cache => cache.put("./index.html", copy)); return injectPushModule(response); }).catch(() => caches.match("./index.html").then(injectPushModule)));
     return;
   }
-  if (["/push-v1a.js","/push-deeplink-v1d.js","/ui-v1f.css","/ui-v1f.js","/comments-v1.js","/activity-v1.js"].some(suffix => requestUrl.pathname.endsWith(suffix))) {
+  if (["/push-v1a.js","/push-deeplink-v1d.js","/ui-v1f.css","/ui-v1f.js","/comments-v1.js","/activity-v1.js","/live-v38.css"].some(suffix => requestUrl.pathname.endsWith(suffix))) {
     event.respondWith(fetch(event.request).then(response => { const copy=response.clone(); caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)); return response; }).catch(() => caches.match(event.request)));
     return;
   }
