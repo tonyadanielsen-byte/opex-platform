@@ -1,0 +1,35 @@
+/* OpEx V38 — premium LIVE status */
+.live{
+  display:inline-flex!important;
+  align-items:center;
+  gap:6px;
+  min-height:22px;
+  padding:3px 9px 3px 7px!important;
+  margin-left:8px!important;
+  border-radius:999px!important;
+  background:linear-gradient(135deg,rgba(25,220,170,.13),rgba(61,132,255,.12))!important;
+  border:1px solid rgba(87,231,201,.42)!important;
+  color:#eefdf8!important;
+  font-size:9px!important;
+  font-weight:850!important;
+  letter-spacing:.7px;
+  line-height:1!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 0 1px rgba(73,133,255,.08),0 4px 14px rgba(12,220,168,.10)!important;
+  text-shadow:0 1px 5px rgba(0,0,0,.26);
+  vertical-align:middle;
+}
+.live::before{
+  content:"";
+  width:7px;
+  height:7px;
+  flex:0 0 7px;
+  border-radius:50%;
+  background:#35e6ad;
+  box-shadow:0 0 0 3px rgba(53,230,173,.10),0 0 10px rgba(53,230,173,.65);
+  animation:opexLivePulse 2.2s ease-in-out infinite;
+}
+@keyframes opexLivePulse{
+  0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 0 3px rgba(53,230,173,.10),0 0 10px rgba(53,230,173,.60)}
+  50%{opacity:.68;transform:scale(.86);box-shadow:0 0 0 5px rgba(53,230,173,.04),0 0 5px rgba(53,230,173,.28)}
+}
+@media (prefers-reduced-motion:reduce){.live::before{animation:none}}
