@@ -2,8 +2,12 @@
   'use strict';
 
   const FUNCTIONS_BASE = 'https://europe-west1-opex-nortura.cloudfunctions.net';
+  const APP_VERSION = 'v2.9.0-activity';
   let bootedUid = '';
   let currentItems = [];
+  let sessionSyncedUid = '';
+  let previousOpenedAt = '';
+  let metaObserver = null;
 
   function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
@@ -13,6 +17,55 @@
     const date = new Date(value);
     if (!Number.isFinite(date.getTime())) return '';
     return new Intl.DateTimeFormat('no-NO', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(date);
+  }
+
+  function formatLastOpened(value) {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return 'nå';
+    return new Intl.DateTimeFormat('no-NO', {
+      day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'
+    }).format(date).replace('.', '.');
+  }
+
+  function syncVisibleAppMeta() {
+    if (!document.body) return;
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (const node of nodes) {
+      const value = String(node.nodeValue || '');
+      if (value.includes('v2.8.0-workflow') && value !== APP_VERSION) {
+        node.nodeValue = value.replace('v2.8.0-workflow', APP_VERSION);
+        continue;
+      }
+      if (value.includes('Sist pålogget') || value.includes('Sist åpnet')) {
+        const next = `Sist åpnet ${previousOpenedAt ? formatLastOpened(previousOpenedAt) : 'nå'}`;
+        if (value.trim() !== next) node.nodeValue = next;
+      }
+    }
+  }
+
+  function installMetaObserver() {
+    if (metaObserver || !document.body) return;
+    metaObserver = new MutationObserver(() => syncVisibleAppMeta());
+    metaObserver.observe(document.body, {childList:true,subtree:true,characterData:true});
+    syncVisibleAppMeta();
+  }
+
+  async function syncLastOpened(user) {
+    if (!user || sessionSyncedUid === user.uid || !window.firebase?.database) return;
+    sessionSyncedUid = user.uid;
+    try {
+      const ref = firebase.database().ref(`/userAppState/${user.uid}/lastOpenedAt`);
+      const snapshot = await ref.get();
+      previousOpenedAt = String(snapshot.val() || '');
+      syncVisibleAppMeta();
+      await ref.set(new Date().toISOString());
+    } catch (error) {
+      console.warn('[OpEx Activity] Kunne ikke oppdatere sist åpnet:', error);
+      previousOpenedAt = '';
+      syncVisibleAppMeta();
+    }
   }
 
   function installStyles() {
@@ -83,7 +136,7 @@
     const overlay = document.createElement('div');
     overlay.id = 'opexActivityOverlay';
     overlay.className = 'opex-activity-overlay';
-    overlay.innerHTML = `<section class="opex-activity-panel" role="dialog" aria-modal="true" aria-label="Nytt siden sist"><header class="opex-activity-head"><div><h3>🔔 Nytt siden sist</h3><p>${items.length} ny${items.length === 1 ? '' : 'e'} oppdatering${items.length === 1 ? '' : 'er'} venter på deg</p></div><button type="button" class="opex-activity-close" aria-label="Lukk">×</button></header><div class="opex-activity-list">${items.map((item,index) => `<button type="button" class="opex-activity-item" data-index="${index}"><strong>${escapeHtml(item.title || 'Oppdatering')}</strong><span>${escapeHtml(item.body || '')}</span><time>${escapeHtml(formatTime(item.createdAt))}</time></button>`).join('')}</div><footer class="opex-activity-foot"><small>Lukk vinduet hvis du vil beholde varslingene som uleste.</small><button type="button" class="opex-activity-mark">Marker alle som lest</button></footer></section>`;
+    overlay.innerHTML = `<section class="opex-activity-panel" role="dialog" aria-modal="true" aria-label="Nytt siden sist"><header class="opex-activity-head"><div><h3>🔔 Nytt siden sist</h3><p>${items.length} ny${items.length === 1 ? '' : 'e'} oppdatering${items.length === 1 ? '' : 'er'} venter på deg</p></div><button type="button" class="opex-activity-close" aria-label="Lukk">×</button></header><div class="opex-activity-list">${items.map((item,index) => `<button type="button" class="opex-activity-item" data-index="${index}"><strong>${escapeHtml(item.title || 'Oppdatering')}</strong><span>${escapeHtml(item.body || '')}</span><time>${escapeHtml(formatTime(item.createdAt))}</time></button>`).join('')}</div><footer class="opex-activity-foot"><small>Klikk på en oppdatering for å åpne riktig tiltak direkte.</small><button type="button" class="opex-activity-mark">Marker alle som lest</button></footer></section>`;
     document.body.appendChild(overlay);
 
     overlay.querySelector('.opex-activity-close')?.addEventListener('click', closePanel);
@@ -97,7 +150,7 @@
     overlay.querySelector('.opex-activity-mark')?.addEventListener('click', async event => {
       const button = event.currentTarget;
       button.disabled = true;
-      button.textContent = 'Markerar…';
+      button.textContent = 'Markerer…';
       try {
         await markSeen(items.map(item => item.id));
         currentItems = [];
@@ -127,9 +180,17 @@
 
   function boot() {
     installStyles();
+    installMetaObserver();
     if (!window.firebase?.auth) { setTimeout(boot,100); return; }
     firebase.auth().onAuthStateChanged(user => {
-      if (!user) { bootedUid = ''; closePanel(); return; }
+      if (!user) {
+        bootedUid = '';
+        sessionSyncedUid = '';
+        previousOpenedAt = '';
+        closePanel();
+        return;
+      }
+      syncLastOpened(user);
       setTimeout(() => loadUnread(user), 350);
     });
   }
