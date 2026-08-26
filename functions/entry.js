@@ -5,4 +5,5 @@ module.exports = {
   ...require('./comments-api'),
   ...require('./activity-api'),
   ...require('./comment-participant-alerts'),
+  ...require('./lor-notifications'),
 };
