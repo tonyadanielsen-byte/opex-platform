@@ -2,8 +2,52 @@
 'use strict';
 const PREFIX=Object.freeze({HMS:'HMS',Kvalitet:'KVAL',KF:'KF',GPP:'GPP',LOR:'LOR',Annet:'ANNET'});let ready=false;const initial=new Set();
 const clean=v=>String(v??'').trim(), prefixFor=c=>PREFIX[clean(c)]||'ANNET', formatId=(p,n)=>`${p}-${String(n).padStart(4,'0')}`;
-async function assignId(key,task){if(!key||clean(task?.systemId))return;const prefix=prefixFor(task?.kategori),r=firebase.database().ref('/opexIdRegistry');const tx=await r.transaction(v=>{const x=v&&typeof v==='object'?v:{};x.counters=x.counters&&typeof x.counters==='object'?x.counters:{};x.assignments=x.assignments&&typeof x.assignments==='object'?x.assignments:{};if(x.assignments[key]?.id)return x;const n=Number(x.counters[prefix]||0)+1;x.counters[prefix]=n;x.assignments[key]={id:formatId(prefix,n),prefix,number:n,createdAt:new Date().toISOString()};return x;});const a=tx.snapshot.child(`assignments/${key}`).val();if(!a?.id)throw Error('ID kunne ikke opprettes');await firebase.database().ref(`/tiltak/${key}`).update({systemId:a.id,systemIdPrefix:a.prefix,systemIdNumber:a.number,systemIdCreatedAt:a.createdAt});}
-function watch(){const r=firebase.database().ref('/tiltak');r.once('value').then(s=>{s.forEach(c=>initial.add(c.key));ready=true;r.on('child_added',c=>{if(!ready||initial.has(c.key)||clean(c.val()?.systemId))return;assignId(c.key,c.val()||{}).catch(e=>console.error('[OpEx ID]',e));});});}
+
+/*
+ * ID is metadata only. It must NEVER be able to block creating/editing a tiltak.
+ * The registry transaction used previously required separate database permissions
+ * and could fail immediately after a new tiltak was written. We now allocate the
+ * ID from the existing /tiltak data only and treat all ID work as best-effort.
+ */
+async function assignId(key,task){
+  if(!key||clean(task?.systemId))return '';
+  try{
+    const prefix=prefixFor(task?.kategori);
+    const snap=await firebase.database().ref('/tiltak').once('value');
+    let max=0;
+    snap.forEach(c=>{
+      const v=c.val()||{};
+      if(c.key===key)return;
+      if(clean(v.systemIdPrefix)===prefix){
+        max=Math.max(max,Number(v.systemIdNumber)||0);
+        return;
+      }
+      const m=clean(v.systemId).match(new RegExp(`^${prefix}-(\\d+)$`));
+      if(m)max=Math.max(max,Number(m[1])||0);
+    });
+    const number=max+1;
+    const id=formatId(prefix,number);
+    const createdAt=new Date().toISOString();
+    await firebase.database().ref(`/tiltak/${key}`).update({systemId:id,systemIdPrefix:prefix,systemIdNumber:number,systemIdCreatedAt:createdAt});
+    return id;
+  }catch(e){
+    console.warn('[OpEx ID] ID-tildeling hoppet over. Tiltaket er fortsatt lagret.',e);
+    return '';
+  }
+}
+
+function watch(){
+  const r=firebase.database().ref('/tiltak');
+  r.once('value').then(s=>{
+    s.forEach(c=>initial.add(c.key));
+    ready=true;
+    r.on('child_added',c=>{
+      if(!ready||initial.has(c.key)||clean(c.val()?.systemId))return;
+      /* Fire-and-forget: ID metadata may never interrupt the normal save flow. */
+      setTimeout(()=>assignId(c.key,c.val()||{}),0);
+    });
+  }).catch(e=>console.warn('[OpEx ID] Oppstart hoppet over',e));
+}
 function styles(){if(document.getElementById('opex-id-style'))return;const s=document.createElement('style');s.id='opex-id-style';s.textContent='.opex-system-id{display:inline-flex;width:max-content;padding:3px 8px;border-radius:999px;background:rgba(67,74,116,.09);border:1px solid rgba(67,74,116,.14);font-size:10px;font-weight:850;letter-spacing:.45px;color:#515b79;margin:0 0 5px}.opex-modal-id{padding:0 20px 10px;background:var(--soft);font-size:11px;font-weight:850;letter-spacing:.5px;color:#66708d}';document.head.appendChild(s);}
 async function getId(key){try{return clean((await firebase.database().ref(`/tiltak/${key}/systemId`).once('value')).val());}catch{return'';}}
 async function decorate(){for(const el of document.querySelectorAll('[onclick*="openModal("]')){if(el.dataset.opexId==='1')continue;const m=String(el.getAttribute('onclick')||'').match(/openModal\(['\"]([^'\"]+)/);if(!m)continue;const id=await getId(m[1]);if(!id)continue;el.dataset.opexId='1';const target=el.querySelector('h3,.task-main b');if(target&&!el.querySelector('.opex-system-id'))target.insertAdjacentHTML('beforebegin',`<span class="opex-system-id">${id}</span>`);}}
