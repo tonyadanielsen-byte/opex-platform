@@ -424,10 +424,31 @@ html,body{max-width:100%}
 .mine-filter-clear:hover{background:#f4f6f9;color:#303746}
 @media(max-width:900px){.mine-filter-menu,.mine-filter-menu summary{width:100%}.mine-filter-panel{position:static;margin-top:6px;width:100%}}
 
+/* v2.8.4 – flytende arbeidsflate etter skjermstørrelse */
+main{
+  width:min(96vw,2400px);
+  max-width:none;
+  margin:0 auto;
+  padding-left:clamp(14px,1.4vw,28px);
+  padding-right:clamp(14px,1.4vw,28px);
+}
+@media(min-width:1800px){
+  main{width:94vw}
+}
+@media(min-width:2400px){
+  main{width:92vw;max-width:2800px}
+}
+@media(max-width:1200px){
+  main{width:98vw;padding-left:12px;padding-right:12px}
+}
+@media(max-width:900px){
+  main{width:100%;padding-left:10px;padding-right:10px}
+}
+
 </style>
 </head>
 <body>
-<div class="topstrip"><div>Nortura Sarpsborg · OpEx Hub Live <span class="live">LIVE</span></div><div id="versjon">v2.8.3-multifilters</div></div>
+<div class="topstrip"><div>Nortura Sarpsborg · OpEx Hub Live <span class="live">LIVE</span></div><div id="versjon">v2.8.4-fluidworkspace</div></div>
 <nav><div class="brand"><img src="./icons/nortura-logo.png" alt="Nortura"><div>OpEx Hub<small>Operations Excellence · Nortura Sarpsborg</small></div></div><div class="tabs"><button class="tab active" onclick="show('dashboard')">📊 Dashboard</button><button class="tab" onclick="show('mine')">👤 Mine tiltak</button><button class="tab" onclick="show('alle')">📋 Alle tiltak</button><button class="tab" onclick="show('arkiv')" id="archiveTab" style="display:none">📚 Lagrede tiltak</button><button class="tab" onclick="openModal()">+ Nytt tiltak</button><button class="tab" onclick="show('admin')" id="adminTab">⚙ Admin</button></div><div class="userbox" onclick="toggleDrop()"><div class="avatar" id="avatar">?</div><div><b id="navUser">Velg bruker</b><div class="small muted" style="color:#d7e1d3" id="userRole">ikke valgt</div></div><div class="dropdown" id="drop"><button class="dropitem" onclick="event.stopPropagation();resetUser()">👤 Bytt bruker</button><button class="dropitem" onclick="event.stopPropagation();loadData(true)">🔄 Oppdater data</button><button class="dropitem" onclick="event.stopPropagation();exportExcel()">📊 Eksporter Excel</button><button class="dropitem" onclick="event.stopPropagation();exportBackup()">💾 Eksporter JSON</button><button class="dropitem" id="adminDrop" onclick="event.stopPropagation();show('admin');toggleDrop(false)">⚙ Admin</button></div></div></nav>
 <div class="login" id="login"><div class="loginbox"><img src="./icons/nortura-logo.png" alt="Nortura"><h2>Velg bruker</h2><p class="muted">Velg deg selv. Dette styrer <b>Mine tiltak</b>, eierskap og registrering.</p><button class="userbtn" onclick="selectUser('Tony Danielsen')">Tony Danielsen <span>TD</span></button><button class="userbtn" onclick="selectUser('Kenneth Nordbakk')">Kenneth Nordbakk <span>KN</span></button><button class="userbtn" onclick="selectUser('Erling Magnussen')">Erling Magnussen <span>EM</span></button><button class="userbtn" onclick="selectUser('Ole Henrik Ødegård')">Ole Henrik Ødegård <span>OH</span></button></div></div>
 <main>
