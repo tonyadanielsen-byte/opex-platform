@@ -590,11 +590,246 @@ nav{background:linear-gradient(90deg,var(--app-nav),var(--app-nav2))!important}
 .action-ticket{display:inline-flex;align-items:center;min-height:18px;padding:1px 7px;border-radius:999px;background:#eef2f6;color:#607087;font-size:8.5px;font-weight:850;letter-spacing:.02em;line-height:1}
 .action-top{align-items:flex-start;min-height:58px}
 .action-card h3{margin-top:7px}
+
+/* v2.11.0 – refined light / dark appearance */
+:root{
+  --ui-blue:#356fc7;
+  --ui-blue-soft:#e8f0fb;
+  --ui-gold:#b58a3e;
+  --ui-gold-soft:#f5ead3;
+  --ui-danger:#d95a62;
+  --ui-success:#3f9b76;
+}
+
+/* Light: warm, premium, high contrast */
+body[data-appearance="light"]{
+  --surface:#ffffff;
+  --surface-2:#f7f8fa;
+  --surface-3:#eef1f4;
+  --surface-warm:#f5f0e8;
+  --surface-inverse:#171a20;
+  --ink-strong:#171a20;
+  --ink:#303743;
+  --ink-muted:#687282;
+  --line-ui:#dce1e7;
+  --line-strong:#cbd2da;
+  --shadow-ui:0 12px 30px rgba(31,42,55,.075);
+  --dashboard-card:#ffffff;
+  --dashboard-card-2:#fafbfc;
+  --dashboard-text:#18202a;
+  --dashboard-muted:#708092;
+  --dashboard-grid:#dde5ec;
+}
+body[data-appearance="light"]{
+  background:
+    radial-gradient(circle at 12% -8%,rgba(181,138,62,.11),transparent 28%),
+    radial-gradient(circle at 88% 5%,rgba(53,111,199,.11),transparent 30%),
+    linear-gradient(180deg,#edf2f6,#f8f9fb 48%,#f4f1eb)!important;
+}
+body[data-appearance="light"] .topstrip{background:#0e1116!important;color:#c8ced7}
+body[data-appearance="light"] nav{background:linear-gradient(90deg,#11151c,#17222e 62%,#10151c)!important}
+body[data-appearance="light"] .appearance-toggle{color:#f2eadb;background:rgba(255,255,255,.065);border-color:rgba(255,255,255,.12)}
+body[data-appearance="light"] #dashboard .pagehead h1{color:#18202a!important}
+body[data-appearance="light"] #dashboard .subtitle{color:#59687a!important}
+body[data-appearance="light"] #dashboard .welcome-reward{
+  background:linear-gradient(135deg,#fff,#f4f7fb)!important;
+  border-color:#dbe3ec!important;
+  color:var(--dashboard-text)!important;
+  box-shadow:var(--shadow-ui)!important;
+}
+body[data-appearance="light"] #dashboard .reward-copy b{color:var(--dashboard-text)!important}
+body[data-appearance="light"] #dashboard .reward-copy small,
+body[data-appearance="light"] #dashboard .reward-visit{color:var(--dashboard-muted)!important}
+body[data-appearance="light"] #dashboard .reward-icon{
+  background:linear-gradient(145deg,#b58a3e,#d0aa62)!important;
+  box-shadow:0 8px 20px rgba(181,138,62,.22)!important;
+}
+body[data-appearance="light"] #dashboard .dash-select,
+body[data-appearance="light"] #dashboard .dash-date,
+body[data-appearance="light"] #dashboard .btn.export{
+  background:#fff!important;color:#26303c!important;border:1px solid var(--line-ui)!important;
+  box-shadow:0 6px 18px rgba(31,42,55,.045)!important;
+}
+body[data-appearance="light"] #dashboard .dash-select option,
+body[data-appearance="light"] #dashboard .dash-date option{background:#fff!important;color:#26303c!important}
+body[data-appearance="light"] #dashboard .metric-card{
+  background:linear-gradient(180deg,var(--dashboard-card),var(--dashboard-card-2))!important;
+  border:1px solid var(--line-ui)!important;
+  box-shadow:var(--shadow-ui)!important;
+}
+body[data-appearance="light"] #dashboard .metric-card:hover{border-color:#b8c8dd!important;box-shadow:0 16px 36px rgba(31,42,55,.11)!important}
+body[data-appearance="light"] #dashboard .metric-card .mlabel,
+body[data-appearance="light"] #dashboard .metric-card .mnum{color:var(--dashboard-text)!important}
+body[data-appearance="light"] #dashboard .metric-card .msub,
+body[data-appearance="light"] #dashboard .metric-viz small{color:var(--dashboard-muted)!important}
+body[data-appearance="light"] #dashboard .metric-card .micon{
+  background:#f0f4f8!important;border-color:#dfe7ee!important;color:var(--ui-blue)!important;
+}
+body[data-appearance="light"] #dashboard .metric-card.red .micon{background:#fff0f1!important;color:#d95a62!important}
+body[data-appearance="light"] #dashboard .metric-card.green .micon{background:#edf8f3!important;color:#3f9b76!important}
+body[data-appearance="light"] #dashboard .metric-card .mfoot{
+  background:#f3f5f7!important;border-color:#e2e7ec!important;color:#344252!important;
+}
+body[data-appearance="light"] #dashboard .dash-card{
+  background:linear-gradient(180deg,#fff,#fafbfc)!important;
+  border:1px solid var(--line-ui)!important;
+  box-shadow:var(--shadow-ui)!important;
+}
+body[data-appearance="light"] #dashboard .dash-card h3{
+  color:var(--dashboard-text)!important;
+  background:#f4f6f8!important;
+  border-bottom-color:#e2e7ec!important;
+}
+body[data-appearance="light"] #dashboard .dash-card h3 .right{color:var(--dashboard-muted)!important}
+body[data-appearance="light"] #dashboard .urgent-item{
+  background:#f7f9fb!important;border-color:#e4e9ee!important;color:var(--dashboard-text)!important;
+}
+body[data-appearance="light"] #dashboard .urgent-item:hover{background:#fff!important}
+body[data-appearance="light"] #dashboard .urgent-item small{color:var(--dashboard-muted)!important}
+body[data-appearance="light"] #dashboard .owner-card{color:var(--dashboard-text)!important;border-bottom-color:#e6ebef!important}
+body[data-appearance="light"] #dashboard .owner-copy small,
+body[data-appearance="light"] #dashboard .owner-card strong{color:var(--dashboard-muted)!important}
+body[data-appearance="light"] #dashboard .dash-table{color:var(--dashboard-text)!important}
+body[data-appearance="light"] #dashboard .dash-table th{background:#f2f5f7!important;color:#667789!important;border-color:#e4e9ee!important}
+body[data-appearance="light"] #dashboard .dash-table td{color:var(--dashboard-text)!important;border-bottom-color:#e7ebef!important}
+body[data-appearance="light"] #dashboard .dash-table tr:hover td{background:#f7f9fb!important}
+body[data-appearance="light"] #dashboard .svgchart text{fill:#718093!important}
+body[data-appearance="light"] #dashboard .svgchart .grid{stroke:#e3e8ee!important}
+body[data-appearance="light"] #dashboard .svgchart .axis{stroke:#cdd5dd!important}
+body[data-appearance="light"] #dashboard .track,
+body[data-appearance="light"] #dashboard .mini-stack,
+body[data-appearance="light"] #dashboard .owner-meter{background:#e8edf2!important}
+
+/* Dark: graphite/black, warm white, gold + blue accents */
+body[data-appearance="dark"]{
+  --surface:#1a1e25;
+  --surface-2:#20252d;
+  --surface-3:#262c35;
+  --surface-warm:#25221d;
+  --surface-inverse:#f4f1e9;
+  --ink-strong:#f5f2ea;
+  --ink:#d8dde5;
+  --ink-muted:#9da6b3;
+  --line-ui:#323943;
+  --line-strong:#404853;
+  --shadow-ui:0 16px 38px rgba(0,0,0,.30);
+  --dashboard-card:#1b2027;
+  --dashboard-card-2:#171b21;
+  --dashboard-text:#f3f1eb;
+  --dashboard-muted:#9ea8b5;
+  --dashboard-grid:#343b45;
+}
+body[data-appearance="dark"]{
+  background:
+    radial-gradient(circle at 12% -10%,rgba(181,138,62,.10),transparent 29%),
+    radial-gradient(circle at 88% 0%,rgba(53,111,199,.12),transparent 31%),
+    linear-gradient(180deg,#111419,#15191f 52%,#101317)!important;
+  color:var(--ink);
+}
+body[data-appearance="dark"] .topstrip{background:#090b0f!important;color:#b7bec8}
+body[data-appearance="dark"] nav{background:linear-gradient(90deg,#0a0d12,#101821 62%,#0a0e13)!important}
+body[data-appearance="dark"] .appearance-toggle{color:#d9b56e;background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.10)}
+body[data-appearance="dark"] #dashboard .pagehead h1{color:var(--ink-strong)!important}
+body[data-appearance="dark"] #dashboard .subtitle{color:#aab3bf!important}
+body[data-appearance="dark"] #dashboard .welcome-reward{
+  background:linear-gradient(135deg,#1c2128,#181d23)!important;
+  border-color:#303741!important;color:var(--dashboard-text)!important;box-shadow:var(--shadow-ui)!important;
+}
+body[data-appearance="dark"] #dashboard .reward-copy b{color:var(--dashboard-text)!important}
+body[data-appearance="dark"] #dashboard .reward-copy small,
+body[data-appearance="dark"] #dashboard .reward-visit{color:var(--dashboard-muted)!important}
+body[data-appearance="dark"] #dashboard .reward-icon{
+  background:linear-gradient(145deg,#9f7733,#c69a4c)!important;
+  box-shadow:0 8px 22px rgba(181,138,62,.18)!important;
+}
+body[data-appearance="dark"] #dashboard .dash-select,
+body[data-appearance="dark"] #dashboard .dash-date,
+body[data-appearance="dark"] #dashboard .btn.export{
+  background:#1b2027!important;color:#f0eee8!important;border:1px solid #343b45!important;
+}
+body[data-appearance="dark"] #dashboard .dash-select option,
+body[data-appearance="dark"] #dashboard .dash-date option{background:#1b2027!important;color:#f0eee8!important}
+body[data-appearance="dark"] #dashboard .metric-card{
+  background:linear-gradient(180deg,var(--dashboard-card),var(--dashboard-card-2))!important;
+  border:1px solid #343b45!important;box-shadow:var(--shadow-ui)!important;
+}
+body[data-appearance="dark"] #dashboard .metric-card:hover{border-color:#536174!important}
+body[data-appearance="dark"] #dashboard .metric-card .mlabel,
+body[data-appearance="dark"] #dashboard .metric-card .mnum{color:var(--dashboard-text)!important}
+body[data-appearance="dark"] #dashboard .metric-card .msub,
+body[data-appearance="dark"] #dashboard .metric-viz small{color:var(--dashboard-muted)!important}
+body[data-appearance="dark"] #dashboard .metric-card .micon{
+  background:#232a33!important;border-color:#37404a!important;color:#6fa0ed!important;
+}
+body[data-appearance="dark"] #dashboard .metric-card.red .micon{background:#321f23!important;color:#ed737a!important}
+body[data-appearance="dark"] #dashboard .metric-card.green .micon{background:#1c2d28!important;color:#61b694!important}
+body[data-appearance="dark"] #dashboard .metric-card .mfoot{
+  background:#222831!important;border-color:#303842!important;color:#d5dbe3!important;
+}
+body[data-appearance="dark"] #dashboard .dash-card{
+  background:linear-gradient(180deg,#1b2027,#171b21)!important;
+  border:1px solid #343b45!important;box-shadow:var(--shadow-ui)!important;
+}
+body[data-appearance="dark"] #dashboard .dash-card h3{
+  color:var(--dashboard-text)!important;background:#20262e!important;border-bottom-color:#303741!important;
+}
+body[data-appearance="dark"] #dashboard .dash-card h3 .right{color:var(--dashboard-muted)!important}
+body[data-appearance="dark"] #dashboard .urgent-item{
+  background:#222832!important;border-color:#343c46!important;color:var(--dashboard-text)!important;
+}
+body[data-appearance="dark"] #dashboard .urgent-item:hover{background:#282f39!important}
+body[data-appearance="dark"] #dashboard .urgent-item small{color:var(--dashboard-muted)!important}
+body[data-appearance="dark"] #dashboard .owner-card{color:var(--dashboard-text)!important;border-bottom-color:#303741!important}
+body[data-appearance="dark"] #dashboard .owner-copy small,
+body[data-appearance="dark"] #dashboard .owner-card strong{color:var(--dashboard-muted)!important}
+body[data-appearance="dark"] #dashboard .dash-table{color:var(--dashboard-text)!important}
+body[data-appearance="dark"] #dashboard .dash-table th{background:#222831!important;color:#a8b1bd!important;border-color:#313842!important}
+body[data-appearance="dark"] #dashboard .dash-table td{color:var(--dashboard-text)!important;border-bottom-color:#303741!important}
+body[data-appearance="dark"] #dashboard .dash-table tr:hover td{background:#232a32!important}
+body[data-appearance="dark"] #dashboard .svgchart text{fill:#a5afbb!important}
+body[data-appearance="dark"] #dashboard .svgchart .grid{stroke:#343c46!important}
+body[data-appearance="dark"] #dashboard .svgchart .axis{stroke:#49515d!important}
+body[data-appearance="dark"] #dashboard .track,
+body[data-appearance="dark"] #dashboard .mini-stack,
+body[data-appearance="dark"] #dashboard .owner-meter{background:#2c333d!important}
+
+/* keep Mine tiltak polished in both modes */
+body[data-appearance="dark"] #mine .toolbar{
+  background:rgba(28,33,40,.95)!important;border-color:#353d47!important;
+}
+body[data-appearance="dark"] #mine .toolbar input,
+body[data-appearance="dark"] #mine .mine-filter-menu summary{
+  background:#20262e!important;color:#eef1f5!important;border-color:#39424d!important;
+}
+body[data-appearance="dark"] #mine .toolbar input::placeholder{color:#8f99a7!important}
+body[data-appearance="dark"] #mine .mine-filter-panel{background:#20262e!important;border-color:#39424d!important}
+body[data-appearance="dark"] #mine .mine-menu-option,
+body[data-appearance="dark"] #mine .mine-filter-option{color:#eef1f5!important}
+body[data-appearance="dark"] #mine .mine-menu-option:hover,
+body[data-appearance="dark"] #mine .mine-filter-option:hover{background:#29313a!important}
+body[data-appearance="dark"] #mine .action-card{
+  background:#1c2128!important;border-color:#363e48!important;color:#f0f2f5!important;
+}
+body[data-appearance="dark"] #mine .action-card h3{color:#f3f2ed!important}
+body[data-appearance="dark"] #mine .action-category,
+body[data-appearance="dark"] #mine .action-meta,
+body[data-appearance="dark"] #mine .action-timeline-labels{color:#9da7b4!important}
+body[data-appearance="dark"] #mine .action-next{background:#252b33!important;color:#9da7b4!important}
+body[data-appearance="dark"] #mine .action-next b{color:#e2e6ec!important}
+
+/* global appearance control */
+.appearance-toggle{
+  width:38px;height:38px;display:grid;place-items:center;flex:0 0 38px;
+  border:1px solid rgba(255,255,255,.12);border-radius:11px;
+  background:rgba(255,255,255,.06);color:#fff;cursor:pointer;
+  font-size:17px;transition:.18s ease;
+}
+.appearance-toggle:hover{transform:translateY(-1px);background:rgba(255,255,255,.10)}
 </style>
 </head>
 <body>
-<div class="topstrip"><div>Nortura Sarpsborg · OpEx Hub Live <span class="live">LIVE</span></div><div id="versjon">v2.10.0-oee-design</div></div>
-<nav><div class="brand"><img src="./icons/nortura-logo.png" alt="Nortura"><div>OpEx Hub<small>Operations Excellence · Nortura Sarpsborg</small></div></div><div class="tabs"><button class="tab active" onclick="show('dashboard')">📊 Dashboard</button><button class="tab" onclick="show('mine')">👤 Mine tiltak</button><button class="tab" onclick="show('alle')">📋 Alle tiltak</button><button class="tab" onclick="show('arkiv')" id="archiveTab" style="display:none">📚 Lagrede tiltak</button><button class="tab" onclick="openModal()">+ Nytt tiltak</button><button class="tab" onclick="show('admin')" id="adminTab">⚙ Admin</button></div><div class="userbox" onclick="toggleDrop()"><div class="avatar" id="avatar">?</div><div><b id="navUser">Velg bruker</b><div class="small muted" style="color:#d7e1d3" id="userRole">ikke valgt</div></div><div class="dropdown" id="drop"><button class="dropitem" onclick="event.stopPropagation();resetUser()">👤 Bytt bruker</button><button class="dropitem" onclick="event.stopPropagation();loadData(true)">🔄 Oppdater data</button><button class="dropitem" onclick="event.stopPropagation();exportExcel()">📊 Eksporter Excel</button><button class="dropitem" onclick="event.stopPropagation();exportBackup()">💾 Eksporter JSON</button><button class="dropitem" id="adminDrop" onclick="event.stopPropagation();show('admin');toggleDrop(false)">⚙ Admin</button></div></div></nav>
+<div class="topstrip"><div>Nortura Sarpsborg · OpEx Hub Live <span class="live">LIVE</span></div><div id="versjon">v2.11.0-dualappearance</div></div>
+<nav><div class="brand"><img src="./icons/nortura-logo.png" alt="Nortura"><div>OpEx Hub<small>Operations Excellence · Nortura Sarpsborg</small></div></div><div class="tabs"><button class="tab active" onclick="show('dashboard')">📊 Dashboard</button><button class="tab" onclick="show('mine')">👤 Mine tiltak</button><button class="tab" onclick="show('alle')">📋 Alle tiltak</button><button class="tab" onclick="show('arkiv')" id="archiveTab" style="display:none">📚 Lagrede tiltak</button><button class="tab" onclick="openModal()">+ Nytt tiltak</button><button class="tab" onclick="show('admin')" id="adminTab">⚙ Admin</button></div><button type="button" class="appearance-toggle" id="appearanceToggle" onclick="toggleAppearance(event)" aria-label="Bytt mellom lyst og mørkt tema" title="Lyst / mørkt tema"><span id="appearanceIcon">☾</span></button><div class="userbox" onclick="toggleDrop()"><div class="avatar" id="avatar">?</div><div><b id="navUser">Velg bruker</b><div class="small muted" style="color:#d7e1d3" id="userRole">ikke valgt</div></div><div class="dropdown" id="drop"><button class="dropitem" onclick="event.stopPropagation();resetUser()">👤 Bytt bruker</button><button class="dropitem" onclick="event.stopPropagation();loadData(true)">🔄 Oppdater data</button><button class="dropitem" onclick="event.stopPropagation();exportExcel()">📊 Eksporter Excel</button><button class="dropitem" onclick="event.stopPropagation();exportBackup()">💾 Eksporter JSON</button><button class="dropitem" id="adminDrop" onclick="event.stopPropagation();show('admin');toggleDrop(false)">⚙ Admin</button></div></div></nav>
 <div class="login" id="login"><div class="loginbox"><img src="./icons/nortura-logo.png" alt="Nortura"><h2>Velg bruker</h2><p class="muted">Velg deg selv. Dette styrer <b>Mine tiltak</b>, eierskap og registrering.</p><button class="userbtn" onclick="selectUser('Tony Danielsen')">Tony Danielsen <span>TD</span></button><button class="userbtn" onclick="selectUser('Kenneth Nordbakk')">Kenneth Nordbakk <span>KN</span></button><button class="userbtn" onclick="selectUser('Erling Magnussen')">Erling Magnussen <span>EM</span></button><button class="userbtn" onclick="selectUser('Ole Henrik Ødegård')">Ole Henrik Ødegård <span>OH</span></button></div></div>
 <main>
 <section id="dashboard" class="screen active">
@@ -881,6 +1116,20 @@ function clearBulkImport(){
 
 function importBackup(){let f=document.getElementById('importFile').files[0];if(!f)return toast('Velg fil først',true);if(!confirm('Dette overskriver tiltak i Firebase. Fortsette?'))return;let r=new FileReader();r.onload=()=>{try{let arr=JSON.parse(r.result);if(!Array.isArray(arr))throw Error('JSON må være en liste');ref.remove().then(()=>Promise.all(arr.map(t=>ref.push(t)))).then(()=>toast(arr.length+' tiltak importert ✓'));}catch(e){toast('Importfeil: '+e.message,true)}};r.readAsText(f)}
 let deferredInstallPrompt=null;window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event});window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;toast('OpEx er installert på enheten 🎉')});async function installApp(){toggleDrop(false);if(deferredInstallPrompt){deferredInstallPrompt.prompt();let choice=await deferredInstallPrompt.userChoice;if(choice.outcome==='accepted')toast('OpEx installeres nå…');deferredInstallPrompt=null;return}let isApple=/iphone|ipad|ipod/i.test(navigator.userAgent);toast(isApple?'På iPhone/iPad: trykk Del og velg «Legg til på Hjem-skjermen».':'Åpne nettlesermenyen og velg «Installer app» eller «Legg til på startskjermen».')}if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}))}
-applyAppTheme();boot();
+function getAppearance(){let v='light';try{v=localStorage.getItem('opex_appearance')||'light'}catch{}return v==='dark'?'dark':'light'}
+function applyAppearance(){
+  let mode=getAppearance();
+  document.body.dataset.appearance=mode;
+  let icon=document.getElementById('appearanceIcon'),btn=document.getElementById('appearanceToggle');
+  if(icon)icon.textContent=mode==='dark'?'☀':'☾';
+  if(btn){btn.title=mode==='dark'?'Bytt til lyst tema':'Bytt til mørkt tema';btn.setAttribute('aria-label',btn.title)}
+}
+function toggleAppearance(event){
+  event?.stopPropagation();
+  let next=getAppearance()==='dark'?'light':'dark';
+  try{localStorage.setItem('opex_appearance',next)}catch{}
+  applyAppearance();
+}
+applyAppTheme();applyAppearance();boot();
 </script>
 </body></html>
