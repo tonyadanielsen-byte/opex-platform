@@ -148,6 +148,7 @@
 
   function mountComments(taskId) {
     stopComments();
+    if (document.getElementById('modalCommentsSection')) return;
     if (!taskId) return;
     const grid = document.querySelector('#modal .formgrid');
     if (!grid) return;
