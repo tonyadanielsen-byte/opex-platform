@@ -107,20 +107,7 @@
   }
 
   function installUserMenuPreference() {
-    const menu = document.querySelector('.dropdown');
-    if (!menu) return false;
-    if (!document.getElementById('opexTrashPreferenceRow')) {
-      const row = document.createElement('div');
-      row.id = 'opexTrashPreferenceRow';
-      row.className = 'opex-menu-preference';
-      row.innerHTML = `<div class="opex-menu-pref-copy"><span class="opex-menu-pref-icon">🗑️</span><span>Bekreft før flytting til papirkurv</span></div><label class="opex-menu-switch" title="Bekreft før flytting til papirkurv"><input type="checkbox" id="opexTrashPreference" aria-label="Bekreft før flytting til papirkurv"><span aria-hidden="true"></span></label>`;
-      const adminItem = Array.from(menu.children).find(el => String(el.textContent || '').trim().toLowerCase().includes('admin'));
-      if (adminItem) menu.insertBefore(row, adminItem); else menu.appendChild(row);
-      const input = row.querySelector('#opexTrashPreference');
-      input?.addEventListener('change', event => setTrashConfirmationEnabled(Boolean(event.target.checked)));
-      row.addEventListener('click', event => event.stopPropagation());
-    }
-    syncTrashPreferenceControl();
+    document.getElementById('opexTrashPreferenceRow')?.remove();
     return true;
   }
 
