@@ -941,10 +941,53 @@ body[data-contrast="high"][data-appearance="dark"] .action-card,
 body[data-contrast="high"][data-appearance="dark"] .dash-card,
 body[data-contrast="high"][data-appearance="dark"] .metric-card{border-color:#4d5966!important}
 @media(max-width:760px){.settings-drawer{width:100vw}.settings-row{align-items:flex-start;flex-direction:column}.settings-row select{width:100%}}
+
+/* v2.13.1 – contrast polish + visual palette picker */
+.settings-palette-block{padding:11px 2px 7px;border-bottom:1px solid #f0f2f4}
+.settings-palette-copy b{display:block;font-size:11px;color:#263341}.settings-palette-copy small{display:block;margin-top:2px;color:#8a95a2;font-size:9px}
+.settings-palette-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.palette-choice{display:flex;align-items:center;gap:9px;min-width:0;padding:9px;border:1px solid #dde3e8;border-radius:11px;background:#fbfcfd;color:#273442;text-align:left;cursor:pointer;transition:.16s ease}
+.palette-choice:hover{border-color:#b9c7d7;background:#fff;transform:translateY(-1px)}
+.palette-choice[aria-pressed="true"]{border-color:#356fc7;box-shadow:0 0 0 3px rgba(53,111,199,.10);background:#f7faff}
+.palette-choice>span:last-child{min-width:0}.palette-choice b{display:block;font-size:9.5px;white-space:nowrap}.palette-choice small{display:block;margin-top:2px;color:#7d8996;font-size:7.5px;white-space:nowrap}
+.palette-preview{display:grid;grid-template-columns:1fr 1fr;width:38px;height:38px;flex:0 0 38px;border-radius:9px;overflow:hidden;border:1px solid rgba(27,39,52,.12);box-shadow:0 3px 8px rgba(31,42,55,.08)}
+.palette-preview i{display:block;width:100%;height:100%}
+body[data-appearance="dark"] .settings-palette-block{border-color:#2a3139}
+body[data-appearance="dark"] .settings-palette-copy b{color:#eef1f4}
+body[data-appearance="dark"] .settings-palette-copy small{color:#98a3af}
+body[data-appearance="dark"] .palette-choice{background:#20262e;border-color:#39434e;color:#eef1f4}
+body[data-appearance="dark"] .palette-choice:hover{background:#252d36;border-color:#536171}
+body[data-appearance="dark"] .palette-choice[aria-pressed="true"]{background:#202b38;border-color:#69a0e8;box-shadow:0 0 0 3px rgba(105,160,232,.11)}
+body[data-appearance="dark"] .palette-choice small{color:#9aa7b4}
+
+/* Stronger dark-mode hierarchy. ID selectors intentionally beat legacy theme rules. */
+body[data-appearance="dark"] #mine .pagehead h1,
+body[data-appearance="dark"] #alle .pagehead h1,
+body[data-appearance="dark"] #arkiv .pagehead h1,
+body[data-appearance="dark"] #dashboard .pagehead h1,
+body[data-appearance="dark"] #admin .pagehead h1{color:#f7f4ed!important;text-shadow:none!important}
+body[data-appearance="dark"] #mine .pagehead .subtitle,
+body[data-appearance="dark"] #alle .pagehead .subtitle,
+body[data-appearance="dark"] #arkiv .pagehead .subtitle,
+body[data-appearance="dark"] #dashboard .pagehead .subtitle,
+body[data-appearance="dark"] #admin .pagehead .subtitle{color:#aeb9c5!important}
+body[data-appearance="dark"] #mine .list-count,
+body[data-appearance="dark"] #allCount{color:#a5b1be!important}
+body[data-appearance="dark"] #mine .action-deadline{color:#9fabb8!important}
+body[data-appearance="dark"] #mine .action-next{background:#252c34!important;border:1px solid #2d3640!important}
+body[data-appearance="dark"] #mine .action-next b{color:#f0f2f4!important}
+body[data-appearance="dark"] #mine .action-category,
+body[data-appearance="dark"] #mine .action-meta{color:#a7b2be!important}
+body[data-appearance="dark"] #mine .action-timeline-labels{color:#a0acb8!important}
+body[data-contrast="high"][data-appearance="dark"] #mine .action-category,
+body[data-contrast="high"][data-appearance="dark"] #mine .action-meta,
+body[data-contrast="high"][data-appearance="dark"] #mine .action-timeline-labels,
+body[data-contrast="high"][data-appearance="dark"] #mine .action-deadline{color:#c3ccd5!important}
+@media(max-width:420px){.settings-palette-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<div class="topstrip"><div>Nortura Sarpsborg · OpEx Hub Live <span class="live">LIVE</span></div><div id="versjon">v2.13.0-user-settings</div></div>
+<div class="topstrip"><div>Nortura Sarpsborg · OpEx Hub Live <span class="live">LIVE</span></div><div id="versjon">v2.13.1-contrast-palettes</div></div>
 <nav><div class="brand"><img src="./icons/nortura-logo.png" alt="Nortura"><div>OpEx Hub<small>Operations Excellence · Nortura Sarpsborg</small></div></div><div class="tabs"><button class="tab active" onclick="show('dashboard')">📊 Dashboard</button><button class="tab" onclick="show('mine')">👤 Mine tiltak</button><button class="tab" onclick="show('alle')">📋 Alle tiltak</button><button class="tab" onclick="show('arkiv')" id="archiveTab" style="display:none">📚 Lagrede tiltak</button><button class="tab" onclick="openModal()">+ Nytt tiltak</button><button class="tab" onclick="show('admin')" id="adminTab">⚙ Admin</button></div><button type="button" class="appearance-toggle" id="appearanceToggle" onclick="toggleAppearance(event)" aria-label="Bytt mellom lyst og mørkt tema" title="Lyst / mørkt tema"><span id="appearanceIcon">☾</span></button><button type="button" class="settings-toggle" id="settingsToggle" onclick="openSettings(event)" aria-label="Åpne personlige innstillinger" title="Personlige innstillinger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1 14h6"/><path d="M9 8h6"/><path d="M17 16h6"/></svg></button><div class="userbox" onclick="toggleDrop()"><div class="avatar" id="avatar">?</div><div><b id="navUser">Velg bruker</b><div class="small muted" style="color:#d7e1d3" id="userRole">ikke valgt</div></div><div class="dropdown" id="drop"><button class="dropitem" onclick="event.stopPropagation();resetUser()">👤 Bytt bruker</button><button class="dropitem" onclick="event.stopPropagation();loadData(true)">🔄 Oppdater data</button><button class="dropitem" onclick="event.stopPropagation();exportExcel()">📊 Eksporter Excel</button><button class="dropitem" onclick="event.stopPropagation();exportBackup()">💾 Eksporter JSON</button><button class="dropitem" id="adminDrop" onclick="event.stopPropagation();show('admin');toggleDrop(false)">⚙ Admin</button></div></div></nav>
 <div class="settings-backdrop" id="settingsBackdrop" onclick="closeSettings()"></div>
 <aside class="settings-drawer" id="settingsDrawer" aria-hidden="true">
@@ -956,7 +999,12 @@ body[data-contrast="high"][data-appearance="dark"] .metric-card{border-color:#4d
     <section class="settings-section">
       <div class="settings-section-title"><span class="settings-section-icon">◐</span><div><b>Utseende</b><small>Farger, kontrast og modus</small></div></div>
       <label class="settings-row"><span><b>Modus</b><small>Lys, mørk eller følg systemet</small></span><select id="prefAppearance" onchange="updatePreference('appearance',this.value)"><option value="light">Lys</option><option value="dark">Mørk</option><option value="system">Følg system</option></select></label>
-      <label class="settings-row"><span><b>Fargeprofil</b><small>Global aksent og stemning</small></span><select id="prefTheme" onchange="updatePreference('appTheme',this.value)"><option value="graphite">Grafitt + gull</option><option value="oee">OEE blå</option><option value="green">Nortura grønn</option><option value="violet">Violet</option></select></label>
+      <div class="settings-palette-block"><div class="settings-palette-copy"><b>Fargeprofil</b><small>Velg palett visuelt – endringen vises med en gang</small></div><input type="hidden" id="prefTheme" value="graphite"><div class="settings-palette-grid">
+<button type="button" class="palette-choice" data-theme-choice="graphite" onclick="chooseThemePreference('graphite')" aria-pressed="false"><span class="palette-preview"><i style="background:#111820"></i><i style="background:#f3efe7"></i><i style="background:#b58a3e"></i><i style="background:#356fc7"></i></span><span><b>Grafitt + gull</b><small>Sort · beige · gull · blå</small></span></button>
+<button type="button" class="palette-choice" data-theme-choice="oee" onclick="chooseThemePreference('oee')" aria-pressed="false"><span class="palette-preview"><i style="background:#06111e"></i><i style="background:#edf4f9"></i><i style="background:#317ee8"></i><i style="background:#16b8a6"></i></span><span><b>OEE blå</b><small>Marine · isblå · blå · teal</small></span></button>
+<button type="button" class="palette-choice" data-theme-choice="green" onclick="chooseThemePreference('green')" aria-pressed="false"><span class="palette-preview"><i style="background:#0b1e10"></i><i style="background:#eef4ec"></i><i style="background:#6f7f2a"></i><i style="background:#c5a05d"></i></span><span><b>Nortura grønn</b><small>Mørk grønn · lys · oliven · gull</small></span></button>
+<button type="button" class="palette-choice" data-theme-choice="violet" onclick="chooseThemePreference('violet')" aria-pressed="false"><span class="palette-preview"><i style="background:#15132d"></i><i style="background:#f0eef9"></i><i style="background:#7563e9"></i><i style="background:#3d82ff"></i></span><span><b>Violet</b><small>Mørk fiolett · lys · violet · blå</small></span></button>
+</div></div>
       <label class="settings-row"><span><b>Kontrast</b><small>Øk skillet mellom tekst og flater</small></span><select id="prefContrast" onchange="updatePreference('contrast',this.value)"><option value="standard">Standard</option><option value="high">Høy</option></select></label>
     </section>
 
@@ -1217,6 +1265,7 @@ function syncPreferenceControls(){
  const map={prefAppearance:'appearance',prefTheme:'appTheme',prefContrast:'contrast',prefDensity:'density',prefWorkspace:'workspaceWidth',prefCardCols:'mineCardCols',prefMineView:'mineView',prefAllView:'allView',prefMineSort:'mineSort',prefDashPeriod:'dashboardPeriod',prefDashScope:'dashboardScope',prefCommentSort:'commentSort'};
  Object.entries(map).forEach(([id,key])=>{let el=document.getElementById(id);if(el)el.value=String(userPrefs[key])});
  let trash=document.getElementById('prefTrashConfirm');if(trash)trash.checked=userPrefs.trashConfirm!==false;
+ document.querySelectorAll('[data-theme-choice]').forEach(btn=>btn.setAttribute('aria-pressed',String(btn.dataset.themeChoice===userPrefs.appTheme)));
  let label=document.getElementById('settingsUserLabel');if(label)label.textContent=(activeUser||'Dine')+' · preferanser følger brukeren';
 }
 function applyUserPreferences({render=false}={}){
@@ -1254,6 +1303,7 @@ function saveUserPreferences(patch={},remote=true){
  let state=document.getElementById('settingsSaveState');if(state)state.textContent='Lagret';
  if(remote&&uid){db.ref('userPreferences/'+uid).update(userPrefs).then(()=>{if(state)state.textContent='Lagret for '+(activeUser||'brukeren')}).catch(()=>{if(state)state.textContent='Lagret på denne enheten'})}
 }
+function chooseThemePreference(theme){updatePreference('appTheme',theme);syncPreferenceControls()}
 function updatePreference(key,value){
  saveUserPreferences({[key]:value});
  if(key==='mineView'||key==='mineCardCols'||key==='mineSort'||key==='density')renderMine();
