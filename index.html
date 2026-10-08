@@ -857,7 +857,7 @@ body[data-appearance="dark"] .modalwrap{background:rgba(2,6,12,.72)}
 </style>
 </head>
 <body>
-<div class="topstrip"><div>Nortura Sarpsborg · OpEx Hub Live <span class="live">LIVE</span></div><div id="versjon">v2.12.0-premium-modal</div></div>
+<div class="topstrip"><div>Nortura Sarpsborg · OpEx Hub Live <span class="live">LIVE</span></div><div id="versjon">v2.12.1-modal-comment-cleanup</div></div>
 <nav><div class="brand"><img src="./icons/nortura-logo.png" alt="Nortura"><div>OpEx Hub<small>Operations Excellence · Nortura Sarpsborg</small></div></div><div class="tabs"><button class="tab active" onclick="show('dashboard')">📊 Dashboard</button><button class="tab" onclick="show('mine')">👤 Mine tiltak</button><button class="tab" onclick="show('alle')">📋 Alle tiltak</button><button class="tab" onclick="show('arkiv')" id="archiveTab" style="display:none">📚 Lagrede tiltak</button><button class="tab" onclick="openModal()">+ Nytt tiltak</button><button class="tab" onclick="show('admin')" id="adminTab">⚙ Admin</button></div><button type="button" class="appearance-toggle" id="appearanceToggle" onclick="toggleAppearance(event)" aria-label="Bytt mellom lyst og mørkt tema" title="Lyst / mørkt tema"><span id="appearanceIcon">☾</span></button><div class="userbox" onclick="toggleDrop()"><div class="avatar" id="avatar">?</div><div><b id="navUser">Velg bruker</b><div class="small muted" style="color:#d7e1d3" id="userRole">ikke valgt</div></div><div class="dropdown" id="drop"><button class="dropitem" onclick="event.stopPropagation();resetUser()">👤 Bytt bruker</button><button class="dropitem" onclick="event.stopPropagation();loadData(true)">🔄 Oppdater data</button><button class="dropitem" onclick="event.stopPropagation();exportExcel()">📊 Eksporter Excel</button><button class="dropitem" onclick="event.stopPropagation();exportBackup()">💾 Eksporter JSON</button><button class="dropitem" id="adminDrop" onclick="event.stopPropagation();show('admin');toggleDrop(false)">⚙ Admin</button></div></div></nav>
 <div class="login" id="login"><div class="loginbox"><img src="./icons/nortura-logo.png" alt="Nortura"><h2>Velg bruker</h2><p class="muted">Velg deg selv. Dette styrer <b>Mine tiltak</b>, eierskap og registrering.</p><button class="userbtn" onclick="selectUser('Tony Danielsen')">Tony Danielsen <span>TD</span></button><button class="userbtn" onclick="selectUser('Kenneth Nordbakk')">Kenneth Nordbakk <span>KN</span></button><button class="userbtn" onclick="selectUser('Erling Magnussen')">Erling Magnussen <span>EM</span></button><button class="userbtn" onclick="selectUser('Ole Henrik Ødegård')">Ole Henrik Ødegård <span>OH</span></button></div></div>
 <main>
@@ -1110,6 +1110,36 @@ function syncModalAutoGrow(){requestAnimationFrame(()=>document.querySelectorAll
 function modalTaskCode(t){return taskDisplayCode(t)||((normCat(t?.kategori)||'NY').toUpperCase().replace('KVALITET','KVAL').replace('ANNET','ANNET'))}
 function normalizeTaskComments(t){let raw=t?.kommentarer||t?.comments||{};if(Array.isArray(raw))return raw.map((v,i)=>({...v,_key:String(i)}));if(raw&&typeof raw==='object')return Object.entries(raw).map(([k,v])=>({...v,_key:k}));return []}
 function formatCommentTime(raw){if(!raw)return '';let d=new Date(raw);return Number.isNaN(d.getTime())?String(raw):d.toLocaleString('no-NO',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+function cleanupLegacyModalComments(){
+ let modal=document.getElementById('modal'),keep=document.getElementById('modalCommentsSection');if(!modal||!keep)return;
+ modal.querySelectorAll('textarea').forEach(area=>{
+   if(area===document.getElementById('modalCommentInput'))return;
+   let ph=(area.getAttribute('placeholder')||'').toLowerCase();
+   if(!ph.includes('kommentar')&&!ph.includes('informasjon'))return;
+   let node=area.parentElement,candidate=null,steps=0;
+   while(node&&node!==modal&&steps<6){
+     let txt=(node.textContent||'');
+     if(txt.includes('Kommentarer / ny informasjon')&&txt.includes('Historikk lagres'))candidate=node;
+     node=node.parentElement;steps++;
+   }
+   if(candidate&&!candidate.contains(keep))candidate.remove();
+   else{
+     let row=area.parentElement;if(row&&!row.contains(keep))row.remove();
+   }
+ });
+ modal.querySelectorAll('select').forEach(sel=>{
+   if(sel===document.getElementById('modalCommentSort'))return;
+   if([...(sel.options||[])].some(o=>o.textContent.trim()==='Nyeste først')){
+     let node=sel.parentElement,steps=0,candidate=null;
+     while(node&&node!==modal&&steps<6){
+       let txt=(node.textContent||'');
+       if(txt.includes('Kommentarer / ny informasjon')&&txt.includes('Historikk lagres'))candidate=node;
+       node=node.parentElement;steps++;
+     }
+     if(candidate&&!candidate.contains(keep))candidate.remove();
+   }
+ });
+}
 function renderTaskComments(){
  let host=document.getElementById('modalCommentHistory'),input=document.getElementById('modalCommentInput'),add=document.getElementById('modalCommentAdd');if(!host)return;
  let t=editKey?tasks.find(x=>x.fbKey===editKey):null,sort=document.getElementById('modalCommentSort')?.value||'newest',items=normalizeTaskComments(t).sort((a,b)=>{let av=new Date(a.tidspunkt||a.createdAt||0).getTime()||0,bv=new Date(b.tidspunkt||b.createdAt||0).getTime()||0;return sort==='oldest'?av-bv:bv-av});
@@ -1132,7 +1162,7 @@ function openModal(key=null){editKey=key;let t=key?tasks.find(x=>x.fbKey===key):
  document.querySelectorAll('#modal .premium-modalbody input,#modal .premium-modalbody select,#modal .premium-modalbody textarea.auto-grow').forEach(el=>el.disabled=readOnly);if(!readOnly)document.getElementById('m_miljo').disabled=!isAdmin();
  document.getElementById('modalSave').style.display=readOnly?'none':'inline-flex';document.getElementById('modalCancel').textContent=readOnly?'Lukk':'Avbryt';document.getElementById('adminWarning').style.display=isAdmin()&&key?'block':'none';syncTrashConfirm();renderModalActions(t);
  let commentInput=document.getElementById('modalCommentInput');if(commentInput){commentInput.value='';commentInput.disabled=!key}document.getElementById('modalCommentSort').value='newest';
- document.getElementById('modal').classList.add('open');syncModalAutoGrow();renderTaskComments();
+ document.getElementById('modal').classList.add('open');cleanupLegacyModalComments();syncModalAutoGrow();renderTaskComments();requestAnimationFrame(cleanupLegacyModalComments);setTimeout(cleanupLegacyModalComments,120);
 }
 function closeModal(){document.getElementById('modal').classList.remove('open');editKey=null}
 function saveTask(){let t={};['tittel','kategori','omrade','prioritet','status','frist','eier','beskrivelse','nestesteg','miljo'].forEach(f=>t[f]=document.getElementById('m_'+f).value.trim());t.kategori=normCat(t.kategori);t.prioritet=normPrio(t.prioritet);t.status=normStatus(t.status);if(!t.tittel||!t.kategori||!t.omrade||!t.frist||!t.eier)return toast('Fyll ut tittel, kategori, område, frist og eier',true);let existing=editKey?tasks.find(x=>x.fbKey===editKey):null;t.forslagsstiller=existing?.forslagsstiller||activeUser;t.opprettetAv=existing?.opprettetAv||activeUser;if(!editKey){t.dato=t.dato||today();t.livssyklus=t.livssyklus||'Aktiv'}let terminal=['Fullført','Stanset','Avsluttet'].includes(t.status);if(terminal)Object.assign(t,clearLifecycleMetadata(),lifecycleMetadata(t.status,existing||{}));else if(existing&&isStored(existing))Object.assign(t,clearLifecycleMetadata());let dup=tasks.find(x=>x.fbKey!==editKey&&x.tittel.toLowerCase()===t.tittel.toLowerCase()),p=editKey?ref.child(editKey).update(t):ref.push(t),messages={Fullført:'Tiltaket er fullført og lagret med dato og tidspunkt ✓',Stanset:'Tiltaket er lagret i Idébank 💡',Avsluttet:'Tiltaket er lagret under Avsluttede ✓'};p.then(()=>{toast(messages[t.status]||(dup?'Lagret. NB: mulig duplikat':'Tiltak lagret ✓'));closeModal();renderAllViews()}).catch(e=>toast(e.message,true))}
