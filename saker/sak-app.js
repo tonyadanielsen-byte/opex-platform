@@ -95,6 +95,7 @@
       kobleTiltak: function () { F.kobleTiltak(ctx.modell, ctx.detail, tasks(), S.state.saker || []); },
       endreSpor: function (rad) { F.endreSporForTiltak(ctx.modell, rad); },
       frakoble: function (rad) { F.frakobleTiltak(ctx.modell, rad); },
+      nySpor: function () { F.nySpor(ctx.modell); },
       nyArsak: function (sp) { F.nyArsak(ctx.modell, sp); },
       vurder: function (sp, a) { F.vurderArsak(ctx.modell, sp, a); },
       fjernArsak: function (a) { F.fjernArsak(ctx.modell, a); },
