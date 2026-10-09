@@ -24,6 +24,7 @@ const MAX_LEGACY_COMMENTS_PER_WRITE = 20;
 const SAK_EVENT_TYPES = Object.freeze([
   'sak_opprettet', 'sak_endret',
   'tiltak_koblet', 'tiltak_frakoblet', 'spor_koblet', 'spor_frakoblet',
+  'spor_opprettet',
   'arsak_opprettet', 'arsak_endret', 'arsak_fjernet',
 ]);
 
