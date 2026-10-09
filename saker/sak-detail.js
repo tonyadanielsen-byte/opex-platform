@@ -100,9 +100,9 @@
 
   function arsaksbilde(m, H, ui) {
     if (!m.spor.length) {
-      return h('p', { class: 'sak-empty-inline' }, [U.icon('flag', 16), 'Saken har ingen spor. Spor settes når saken opprettes, og årsaker knyttes til spor.']);
+      return h('div', null, [h('p', { class: 'sak-empty-inline' }, [U.icon('flag', 16), 'Saken har ingen spor ennå. Legg til et spørsmål for å starte.']), !m.sak.lukket ? U.button('Legg til spor', { icon: 'plus', variant: 'secondary', on: { click: H.nySpor } }) : null]);
     }
-    return h('div', { class: 'sak-spor-list' }, m.spor.map(function (sp) {
+    return h('div', { class: 'sak-spor-list' }, [m.spor.map(function (sp) {
       var visFjernet = !!ui.visFjernet[sp.sporId];
       var liste = sp.arsaker.concat(visFjernet ? sp.fjernede : []);
       return h('div', { class: 'sak-spor' }, [
@@ -117,7 +117,7 @@
           sp.fjernede.length ? U.button(visFjernet ? 'Skjul fjernede (' + sp.fjernede.length + ')' : 'Vis fjernede (' + sp.fjernede.length + ')', { small: true, variant: 'ghost', on: { click: function () { ui.visFjernet[sp.sporId] = !visFjernet; H.tegnPaaNytt(); } } }) : null,
         ]),
       ]);
-    }));
+    }), !m.sak.lukket && m.spor.length < 8 ? U.button('Legg til spor', { icon: 'plus', variant: 'secondary', on: { click: H.nySpor } }) : null]);
   }
 
   /* ------------------------------------------------------------------ 4. tiltak */
