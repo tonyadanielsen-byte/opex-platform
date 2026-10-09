@@ -110,6 +110,73 @@ fortsatt som *gjenstår*, regnes **aldri** som forfalt (som `computedStatus` i a
 
 Ellers er ekskludering, klasse, statustekst og «forfalt» identisk med appen i alle testede kombinasjoner.
 
+## Datalag for saker (fase 1c)
+
+Filer: `functions/sak-core.js` (all logikk, databasen injiseres), `functions/sak-api.js` (tynn callable-binding),
+`tests/sak-core.test.cjs` + `tests/helpers/fake-rtdb.cjs` (simulert database). **Ikke deployet.** Ingen UI.
+
+### Callables (alle: region `europe-west1`, `maxInstances: 2`, krever `authorizedUsers/{uid} === true`)
+
+| Funksjon | Gjør |
+|---|---|
+| `createSakV1` | Oppretter sak med servergenerert `SAK-0001`, spor og sakhendelse i **én** atomisk skriving |
+| `getSakerV1` | Lett liste over alle saker |
+| `getSakV1` | Sak + spor + årsaker (inkl. fjernede) + tiltak-ids + spor-koblinger + hendelser i rå RTDB-form (direkte inn i `sak-logic.js`) |
+| `updateSakV1` | Tittel, problemstilling, status, eier, områder. **Status endres bare manuelt.** |
+| `setTiltakSakV1` | Kobler tiltak til sak og setter sporsettet (erstatter forrige). Idempotent. |
+| `removeTiltakSakV1` | Fjerner tiltaket fra saken. Idempotent. |
+| `createArsakV1` | Registrerer årsak under et spor |
+| `updateArsakV1` | Endrer status/grunnlag på stedet, reviderer tekst (ny årsak som erstatter), eller fjerner |
+
+### Datamodell
+
+```
+tiltak/{id}.sakId                          eneste endring på eksisterende data (kilde til medlemskap)
+/saker/{sakId}            kode, tittel, problemstilling?, eierUid, status, omrader{navn:true}?, opprettetAt, opprettetAv
+/sakSpor/{sakId}/{sporId}                  kode (A,B,…), sporsmal, rekkefolge      — spor har ingen status
+/sakTiltakSpor/{sakId}/{tiltakId}/{sporId}: true                                   — gyldig bare hvis tiltak.sakId === sakId
+/sakArsaker/{sakId}/{arsakId}              sporId, tekst, status, grunnlag?, vurdertAv, vurdertAt,
+                                           opprettetAv, opprettetAt, fjernet, erstatter?
+/sakEvents/{sakId}/{eventKey}              se events-core.js (alltid med actorUid = request.auth.uid)
+/counters/sak                              heltall; transaksjon, aldri skanning
+```
+
+Status sak: `Åpen | Under oppfølging | Avventer beslutning | Løst | Lukket` (standard `Åpen`).
+Status årsak: `hypotese | støttet | bekreftet | avkreftet`; `støttet`/`bekreftet` krever `grunnlag`.
+`vurdertAv`/`vurdertAt`/`opprettetAv`/`opprettetAt` og alle hendelser settes **av serveren**; forespørsler med ukjente felt
+avvises, så identitet og tidsstempel aldri kan sendes inn av klienten.
+
+### Konsistens (ingen delvis fullførte oppdateringer)
+
+- Alle operasjoner som berører flere noder er **én multi-path `update()`** (atomisk), med endring og sakEvents sammen.
+- **Koble tiltak:** `tiltak.sakId` avgjøres med en **transaksjon på tiltaket** (kun én sak kan «vinne», også ved samtidige
+  forsøk). Deretter skrives spor-koblinger + hendelser i én atomisk update (3 forsøk). Feiler den, **rulles `sakId` tilbake**.
+  Hele operasjonen er idempotent og kan trygt gjentas.
+- **Frakoble:** samme mønster. Feiler skrivingen etter frikobling, er medlemskapet (sannheten) allerede fjernet; gjenværende
+  spor-koblinger er foreldreløse, ignoreres (`ugyldigeKoblinger`) og erstattes ved neste kobling.
+- Ett tiltak kan bare tilhøre **én** sak; flytting krever eksplisitt frakobling først.
+- **Revisjon av årsakstekst** lager en ny årsak (`erstatter`) og markerer den gamle `fjernet`; status nullstilles til `hypotese`.
+  Fjernede årsaker kan ikke endres (append-only).
+- Lukket sak: innhold (tiltak, årsaker, tittel …) kan ikke endres før saken åpnes igjen; status kan alltid settes.
+- Fritekst (tittel, problemstilling, årsakstekst, grunnlag) skrives **aldri** i sakEvents.
+
+### Begrensninger og kjent risiko (må leses før deploy)
+
+1. **Testet mot en SIMULERT database**, ikke ekte Firebase. Simulatoren er bevisst streng (ugyldige nøkler, `undefined`,
+   overlappende stier, transaksjonssemantikk med kald cache, samtidige skrivinger, feilinjeksjon), men den beviser logikken,
+   ikke at ekte RTDB/admin-SDK oppfører seg likt. Callable-bindingen er bare lastetestet.
+2. **Dobbeltfeil:** feiler både skrivingen og tilbakerullingen ved kobling, blir tiltaket stående med `sakId` uten spor-koblinger.
+   Gjentakelse fullfører sporene, men `tiltak_koblet` mangler da i `sakEvents` (endringen er likevel logget i `tiltakEvents`, uten bruker).
+3. **Samtidig redigering av samme sak/årsak** (`updateSak`, `updateArsak`) er last-write-wins; `foer` i hendelsen kan være feil
+   hvis to personer endrer akkurat samme felt i samme øyeblikk. Akseptabelt for få piloter.
+4. **Saksnummer** kan få hull (nummer tildeles før skrivingen), aldri duplikater.
+5. **Ingen rate limiting / App Check** (som resten av OpEx). Ingen regelendring: nodene er kun tilgjengelige via disse funksjonene
+   forutsatt at dagens RTDB-regler er deny-by-default for ukjente noder (**ikke verifisert**).
+6. `getSakV1` finner saksmedlemmer med `orderByChild('sakId')` uten `.indexOn`; admin-SDK leser da alle tiltak (greit for hundrevis).
+7. Spor kan bare opprettes sammen med saken (ingen «legg til spor» ennå). Ingen sletting av saker.
+8. Hendelser i samme millisekund har tilfeldig rekkefølge innen én operasjon (tilfeldig suffiks i nøkkelen).
+9. Funksjonene er IKKE deployet; merge til `main` deployer dem (se avsnittet om deploy under 1a).
+
 ## Tester
 
 ```
