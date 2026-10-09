@@ -285,7 +285,7 @@
         var sporRad = rad.eventType === 'spor_koblet' ? rad : forrige;
         var kobletRad = rad.eventType === 'tiltak_koblet' ? rad : forrige;
         gruppert[gruppert.length - 1] = Object.assign({}, kobletRad, {
-          tekst: kobletRad.tekst + ' og ' + sporRad.tekst.replace(/^.*? ble koblet til /, 'koblet til '),
+          tekst: kobletRad.tekst + ' og ' + sporRad.tekst.replace(/^.*? ble koblet til /, ''),
           detaljer: [forrige, rad],
         });
       } else gruppert.push(rad);
