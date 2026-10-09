@@ -633,6 +633,72 @@ async function removeTiltakSak(deps, uid, raw) {
   });
 }
 
+/* ---------------------------------------------------------- flere spor */
+
+/**
+ * Nytt spor etter opprettelse. En kortlivet per-sak-lås beskytter tildeling av neste
+ * A–H-kode ved samtidige forespørsler. Selve sporet og hendelsen lagres atomisk.
+ */
+async function createSpor(deps, uid, raw) {
+  const input = objectInput(raw, ['sakId', 'sporsmal']);
+  const actor = await requireAuthorized(deps, uid);
+  const sakId = requireId(input.sakId, 'sakId');
+  const sporsmal = cleanText(input.sporsmal, 'Spørsmål', {
+    min: LIMITS.sporsmal.min, max: LIMITS.sporsmal.max, single: true, required: true,
+  });
+  const lockRef = deps.db.ref(`/sakSporLocks/${sakId}`);
+  const owner = deps.db.ref('/sakSporLocks').push().key;
+  let acquired = false;
+  for (let attempt = 1; attempt <= LIMITS.lockAttempts; attempt++) {
+    const now = deps.now().getTime();
+    const tx = await lockRef.transaction((cur) => {
+      if (isObject(cur) && cur.until > now && cur.owner !== owner) return undefined;
+      return { owner, until: now + LIMITS.lockMs };
+    });
+    if (tx.committed) { acquired = true; break; }
+    if (attempt < LIMITS.lockAttempts) await deps.sleep(200 * attempt);
+  }
+  if (!acquired) fail('aborted', 'Spor oppdateres av en annen bruker. Prøv igjen.');
+  try {
+    const sak = await loadSak(deps, sakId);
+    assertOpen(sak);
+    const existing = (await deps.db.ref(`/sakSpor/${sakId}`).get()).val() || {};
+    const records = Object.values(existing).filter(isObject);
+    if (records.length >= LIMITS.sporMax) fail('failed-precondition', 'Saken kan ha maks 8 spor.');
+    const used = new Set(records.map((r) => clean(r.kode).toUpperCase()));
+    let kode = null;
+    for (let i = 0; i < LIMITS.sporMax; i++) {
+      const candidate = String.fromCharCode(65 + i);
+      if (!used.has(candidate)) { kode = candidate; break; }
+    }
+    if (!kode) fail('failed-precondition', 'Ingen tilgjengelig sporkode (A–H).');
+    const rekkefolge = records.reduce((max, r) => Math.max(max, Number(r.rekkefolge) || 0), 0) + 1;
+    const sporId = deps.db.ref(`/sakSpor/${sakId}`).push().key;
+    // Kontroller at låsen ikke er overtatt mens vi leste, før vi oppretter data.
+    const current = (await lockRef.get()).val();
+    if (!isObject(current) || current.owner !== owner || current.until <= deps.now().getTime()) {
+      fail('aborted', 'Spor-låsen utløp. Prøv igjen.');
+    }
+    const updates = {
+      [`/sakSpor/${sakId}/${sporId}`]: { kode, sporsmal, rekkefolge },
+      ...sakEventWrites(sakId, eventsFor(deps, actor, [
+        { type: 'spor_opprettet', entityId: sporId, felt: 'kode', etter: kode },
+      ])),
+    };
+    await commit(deps, updates, 'Sporet kunne ikke opprettes. Prøv igjen.');
+    return { sakId, sporId, kode };
+  } finally {
+    try {
+      await lockRef.transaction((cur) => {
+        if (cur === null || cur === undefined) return null;
+        return isObject(cur) && cur.owner === owner ? null : undefined;
+      });
+    } catch (error) {
+      deps.log.error('sak-core: kunne ikke frigjøre spor-lås', { sakId, error: String(error?.message || error) });
+    }
+  }
+}
+
 /* ------------------------------------------------------------------ årsaker */
 
 function arsakStatus(value, fallback) {
@@ -779,6 +845,7 @@ module.exports = {
   updateSak,
   setTiltakSak,
   removeTiltakSak,
+  createSpor,
   createArsak,
   updateArsak,
 };
