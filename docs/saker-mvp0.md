@@ -216,6 +216,37 @@ bygger alltid på de ferske dataene den får, så samtidige endringer på andre 
 9. Hendelser i samme millisekund har tilfeldig rekkefølge innen én operasjon (tilfeldig suffiks i nøkkelen).
 10. Funksjonene er IKKE deployet; merge til `main` deployer dem (se avsnittet om deploy under 1a).
 
+## Fase 1d – Saker-grensesnittet
+
+Ny fane **Saker** i OpEx Hub (egen modul i `saker/`, ingen overlay-script, ingen monkey-patching, ingen MutationObserver).
+
+**Filer**
+- `saker/sak-view-model.js` – ren logikk (testet i Node): sorteringer, «Krever handling», aktivitetsstrøm, kortmodell, kandidater å koble. Bygger på `sak-logic.js`.
+- `saker/sak-store.js` – klientens datalag: KUN fetch mot de eksisterende callablene. Ingen skriving til Firebase fra klienten. Minnecache (aldri localStorage), tømmes ved brukerbytte.
+- `saker/sak-ui.js` (DOM-bygging uten innerHTML for brukertekst, linjeikoner), `sak-forms.js` (dialoger), `sak-list.js`, `sak-detail.js`, `sak-app.js` (ruting `#saker` / `#saker/<sakId>`, rendering), `sak.css`.
+- `index.html`: fane, `<section id="saker">`, `show()`-mapping, ett kall i `renderAllViews()`, og `window.OpExHost` (leser appens bruker, tiltak, token). `sw.js`: nye filer i shell + nettverk-først, ny cache-versjon.
+
+**Designprinsipper**
+- Bruker appens eksisterende tokens (`--surface*`, `--ink*`, `--line-ui`, `--app-accent`) og følger lys/mørk, de fire fargeprofilene, kontrast og tetthet. Egne `.sak-*`-klasser scopet under `.sak-scope`.
+- Status vises alltid med ikon + tekst. Kontrast ≥ 4,5:1 er testet i 2×4 profiler + høy kontrast.
+- Ingen optimistiske oppdateringer: dialogen lukkes og suksess meldes først etter at serveren har svart OK; feil vises i dialogen med input beholdt. Etter endring hentes ferske data fra serveren.
+- Alle tall (fremdrift, forfalt, siste aktivitet) beregnes ved visning fra tiltakene; ingenting lagres.
+- Årsaker merkes «Menneskelig vurdering» med hvem og når. Saksstatus endres bare manuelt; UI kan bare foreslå «Løst».
+- Tiltak åpnes i den eksisterende tiltaksmodalen (`openModal(key)`), uendret.
+- Avkortet historikk (`avkortet` fra serveren) vises som tydelig varsel.
+
+**Begrensninger i 1d**
+1. UI-testene kjører mot SIMULERT backend (ekte sak-core mot FakeRtdb via callable-protokollen, Firebase-SDK er stubbet). Ekte Firebase, ekte Cloud Functions og RTDB-regler er IKKE testet.
+2. Medlemskap i saken leses fra appens live tiltaksdata (`tiltak.sakId`); rett etter en kobling kan en rad dukke opp/forsvinne et øyeblikk senere enn bekreftelsen, når sanntidslytteren leverer endringen.
+3. Spor kan bare settes når saken opprettes (ingen callable for å legge til spor senere). Rediger-dialogen endrer ikke spor.
+4. Eier-valg er begrenset til brukerne appen kjenner (`PROFILE_BY_UID`, tre personer).
+5. Årsakens ordlyd kan ikke redigeres i UI (backend støtter det som ny versjon); bare vurdering/grunnlag og fjerning.
+6. Det finnes ingen direktelenke som åpner Saker ved første innlasting; `#saker/<id>` virker når appen allerede er åpen (hashchange) og via tilbake-knappen.
+7. Oversiktskortene henter detaljer per sak (maks 3 parallelt) for «siste aktivitet». Fint for titalls saker; bør få en lett oppsummerings-callable ved mange saker.
+8. Mobil: appens eksisterende navigasjon (fanestripe) er uendret; Saker-fanen ligger i den.
+
+**Skjermbilder** ligger i `docs/saker-ui/`.
+
 ## Tester
 
 ```
