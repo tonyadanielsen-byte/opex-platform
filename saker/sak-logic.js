@@ -24,6 +24,10 @@
  *                men rapporteres i datakvalitet.ukjentStatus.
  *  - FORFALT:    delmengde av GJENSTÅR med gyldig frist STRENGT FØR dagens Oslo-dato.
  *                Frist lik i dag er ikke forfalt.
+ *  - ARKIVERT: Fullført + arkivert/lagret er fortsatt GJORT. Et arkivert tiltak med ikke-ferdig status
+ *                (inkonsistent: livssyklus Arkivert/Idebank/Idébank/Avsluttet eller arkivert === true) er
+ *                fortsatt GJENSTÅR, regnes ALDRI som forfalt (som computedStatus i appen), og flagges i
+ *                datakvalitet.arkivertIkkeFerdig.
  *  - STANSET / AVSLUTTET: egne tellere. Inngår ikke i fremdriftsnevneren.
  *  - Normalisering: Åpen → Innmeldt, Pågår → Aktiv, Avvist → Avsluttet.
  */
@@ -134,6 +138,13 @@
     return !!t && (t.livssyklus === 'Papirkurv' || t.papirkurv === true);
   }
 
+  /** Samme regler som isArchived i appen. */
+  function erArkivert(t) {
+    if (!t) return false;
+    return t.arkivert === true || t.livssyklus === 'Arkivert' || t.livssyklus === 'Idebank'
+      || t.livssyklus === 'Idébank' || t.livssyklus === 'Avsluttet';
+  }
+
   function fristStatus(frist) {
     if (frist === undefined || frist === null || frist === '') return 'tom';
     return gyldigDato(frist) ? 'ok' : 'ugyldig';
@@ -159,6 +170,7 @@
       klasse: 'gjenstar',
       status: status,
       ukjentStatus: false,
+      arkivertIkkeFerdig: false,
       forfalt: false,
       ekskludertArsak: null,
       fristStatus: fs,
@@ -174,7 +186,9 @@
     else {
       out.klasse = 'gjenstar';
       out.ukjentStatus = KJENTE_STATUSER.indexOf(status) === -1;
-      out.forfalt = fs === 'ok' && task.frist < idag; // ÅÅÅÅ-MM-DD sorterer leksikografisk = kronologisk
+      out.arkivertIkkeFerdig = erArkivert(task); // inkonsistent: arkivert, men ikke ferdig
+      // ÅÅÅÅ-MM-DD sorterer leksikografisk = kronologisk. Arkiverte regnes aldri som forfalt.
+      out.forfalt = fs === 'ok' && task.frist < idag && !out.arkivertIkkeFerdig;
     }
     return out;
   }
@@ -278,7 +292,7 @@
     var poster = medlemmer.map(function (t) { return klassifiserTiltak(t, idag); });
 
     var teller = { gjort: 0, gjenstar: 0, stanset: 0, avsluttet: 0, ekskludert: 0, forfalt: 0 };
-    var ukjentStatus = [], ugyldigFrist = [], utenFrist = [];
+    var ukjentStatus = [], ugyldigFrist = [], utenFrist = [], arkivertIkkeFerdig = [];
     var kommende = [], forfalte = [], medlemIder = [];
 
     poster.forEach(function (p) {
@@ -288,9 +302,10 @@
       if (p.klasse !== 'gjenstar') return;
       if (p.forfalt) teller.forfalt++;
       if (p.ukjentStatus) ukjentStatus.push(p.id);
+      if (p.arkivertIkkeFerdig) arkivertIkkeFerdig.push(p.id);
       if (p.fristStatus === 'ugyldig') ugyldigFrist.push(p.id);
       else if (p.fristStatus === 'tom') utenFrist.push(p.id);
-      else if (p.forfalt) forfalte.push(p);
+      else if (p.frist < idag) { if (p.forfalt) forfalte.push(p); } // passert frist på arkivert tiltak: verken forfalt eller kommende
       else kommende.push(p);
     });
 
@@ -330,6 +345,7 @@
         ukjentStatus: { antall: ukjentStatus.length, tiltakIds: ukjentStatus },
         ugyldigFrist: { antall: ugyldigFrist.length, tiltakIds: ugyldigFrist },
         utenFrist: { antall: utenFrist.length, tiltakIds: utenFrist },
+        arkivertIkkeFerdig: { antall: arkivertIkkeFerdig.length, tiltakIds: arkivertIkkeFerdig },
       },
       tiltak: poster,
     };
@@ -358,6 +374,7 @@
     normStatus: normStatus,
     erTest: erTest,
     erPapirkurv: erPapirkurv,
+    erArkivert: erArkivert,
     klassifiserTiltak: klassifiserTiltak,
     tiltakForSak: tiltakForSak,
     sisteAktivitet: sisteAktivitet,

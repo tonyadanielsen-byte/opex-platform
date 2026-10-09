@@ -486,6 +486,79 @@ test('[27] blanding av alle kategorier: tellerne går opp og ingenting telles to
   assert.deepEqual(s.tiltak.map(p => p.klasse).filter(k => k === 'ekskludert').length, 3);
 });
 
+/* --------------------------------------------- arkiverte tiltak (avklaring før 1c) */
+
+test('[28] Fullført + arkivert/lagret teller som gjort, uansett hvilken arkivmarkering som brukes', () => {
+  for (const arkiv of [{ livssyklus: 'Arkivert', arkivert: true }, { livssyklus: 'Arkivert' }, { arkivert: true }]) {
+    const p = klasse({ status: 'Fullført', frist: '2026-01-01', ...arkiv });
+    assert.equal(p.klasse, 'gjort', JSON.stringify(arkiv));
+    assert.equal(p.forfalt, false);
+    assert.equal(p.arkivertIkkeFerdig, false, 'fullført + arkivert er forventet tilstand, ikke et avvik');
+  }
+  const s = sum([tiltak('-a', { status: 'Fullført', livssyklus: 'Arkivert', arkivert: true }), tiltak('-b', {})]);
+  assert.equal(s.gjort, 1);
+  assert.equal(s.datakvalitet.arkivertIkkeFerdig.antall, 0);
+});
+
+test('[29] arkivert tiltak med ikke-ferdig status: gjenstår, IKKE forfalt, og flagges som datakvalitetsavvik', () => {
+  const arkivmarkeringer = [
+    { arkivert: true }, { livssyklus: 'Arkivert' }, { livssyklus: 'Idebank' }, { livssyklus: 'Idébank' }, { livssyklus: 'Avsluttet' },
+  ];
+  for (const arkiv of arkivmarkeringer) {
+    for (const status of ['Aktiv', 'Innmeldt', 'Til godkjenning', 'Åpen', 'Pågår', '', 'Venter']) {
+      const p = klasse({ status, frist: '2026-10-08', ...arkiv }); // gammel frist
+      assert.equal(p.klasse, 'gjenstar', JSON.stringify([status, arkiv]));
+      assert.equal(p.forfalt, false, 'arkivert skal aldri regnes som forfalt: ' + JSON.stringify([status, arkiv]));
+      assert.equal(p.arkivertIkkeFerdig, true);
+    }
+  }
+  const s = sum([
+    tiltak('-a', { status: 'Aktiv', frist: '2026-10-01', livssyklus: 'Arkivert', arkivert: true }),
+    tiltak('-b', { status: 'Innmeldt', frist: '2026-10-03', arkivert: true }),
+    tiltak('-c', { status: 'Aktiv', frist: '2026-10-01' }), // vanlig forfalt tiltak
+    tiltak('-d', { status: 'Aktiv', frist: '2026-10-20' }),
+  ]);
+  assert.equal(s.gjenstar, 4, 'arkiverte ikke-ferdige regnes fortsatt som gjenstår');
+  assert.equal(s.forfalt, 1, 'bare det vanlige tiltaket er forfalt');
+  assert.deepEqual(s.datakvalitet.arkivertIkkeFerdig, { antall: 2, tiltakIds: ['-a', '-b'] });
+  assert.deepEqual(s.eldsteForfaltFrist, { dato: '2026-10-01', tiltakIds: ['-c'], dagerSiden: 8 });
+});
+
+test('[30] arkivert ikke-ferdig tiltak med gammel frist forurenser ikke «nærmeste frist» eller «eldste forfalte»', () => {
+  const s = sum([tiltak('-a', { status: 'Aktiv', frist: '2026-01-01', arkivert: true })]);
+  assert.equal(s.gjenstar, 1);
+  assert.equal(s.forfalt, 0);
+  assert.equal(s.naermesteFrist, null, 'en passert frist er ikke «kommende»');
+  assert.equal(s.eldsteForfaltFrist, null);
+  // arkivert ikke-ferdig med framtidig frist er fortsatt en kommende frist (og flagges)
+  const framtid = sum([tiltak('-a', { status: 'Aktiv', frist: '2026-10-20', arkivert: true })]);
+  assert.equal(framtid.naermesteFrist.dato, '2026-10-20');
+  assert.equal(framtid.datakvalitet.arkivertIkkeFerdig.antall, 1);
+});
+
+test('[31] arkivert + Stanset/Avsluttet er forventet (ikke avvik); ekskluderte flagges ikke', () => {
+  for (const status of ['Stanset', 'Avsluttet', 'Avvist']) {
+    const p = klasse({ status, livssyklus: 'Idebank', arkivert: true });
+    assert.equal(p.arkivertIkkeFerdig, false, status);
+  }
+  const s = sum([
+    tiltak('-a', { status: 'Stanset', livssyklus: 'Idebank', arkivert: true }),
+    tiltak('-b', { status: 'Aktiv', arkivert: true, miljo: 'Test' }),
+    tiltak('-c', { status: 'Aktiv', arkivert: true, livssyklus: 'Papirkurv' }),
+  ]);
+  assert.equal(s.datakvalitet.arkivertIkkeFerdig.antall, 0);
+  assert.equal(s.ekskludert, 2);
+});
+
+test('[32] erArkivert har samme regler som isArchived i appen', () => {
+  assert.equal(L.erArkivert({ arkivert: true }), true);
+  for (const l of ['Arkivert', 'Idebank', 'Idébank', 'Avsluttet']) assert.equal(L.erArkivert({ livssyklus: l }), true, l);
+  for (const l of ['Aktiv', 'Papirkurv', undefined, '']) assert.equal(L.erArkivert({ livssyklus: l }), false, String(l));
+  assert.equal(L.erArkivert({ arkivert: false }), false);
+  assert.equal(L.erArkivert({ arkivert: 'true' }), false);
+  assert.equal(L.erArkivert(null), false);
+});
+
 /* ------------------------------------------------- øvrig kontrakt og robusthet */
 
 test('medlemskap bestemmes bare av tiltak.sakId (tiltak i andre saker og uten sak ignoreres)', () => {
@@ -563,7 +636,7 @@ test('resultatet kan serialiseres (JSON) uten tap, klart for UI og AI-grunnlag',
 
 test('API-et er stabilt og frosset', () => {
   assert.deepEqual(Object.keys(L).sort(), [
-    'dagerMellom', 'erPapirkurv', 'erTest', 'gyldigDato', 'klassifiserTiltak',
+    'dagerMellom', 'erArkivert', 'erPapirkurv', 'erTest', 'gyldigDato', 'klassifiserTiltak',
     'normStatus', 'oppsummerSak', 'oppsummerSaker', 'osloDato', 'sisteAktivitet', 'tiltakForSak',
   ].sort());
   assert.equal(Object.isFrozen(L), true);

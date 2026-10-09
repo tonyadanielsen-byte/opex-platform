@@ -99,10 +99,16 @@ Normalisering som `normStatus` i appen: Åpen → Innmeldt, Pågår → Aktiv, A
 aldri lokal `Date`-parsing. Dagens app bruker UTC-dato i `today()`/`daysTo()` og får derfor «forfalt» feil med én
 dag mellom 00:00 og ca. 02:00 norsk tid; modulen gjør ikke den feilen.
 
+**Arkiverte tiltak:** Fullført + arkivert/lagret teller som *gjort*. Et arkivert tiltak med ikke-ferdig status
+(`livssyklus` Arkivert/Idebank/Idébank/Avsluttet eller `arkivert === true`) er en inkonsistens: det regnes
+fortsatt som *gjenstår*, regnes **aldri** som forfalt (som `computedStatus` i appen), påvirker ikke
+«nærmeste frist»/«eldste forfalte» med en passert frist, og flagges i `datakvalitet.arkivertIkkeFerdig`.
+
 **Kjente, bevisste avvik fra dagens app** (målt mot appens egne funksjoner, 95 256 kombinasjoner):
-1. Arkivert/lagret tiltak med ikke-terminal status og gammel frist: appen sier «ikke forfalt», modulen sier forfalt.
-2. Umulig kalenderdato (`2026-02-30`): appen ruller over til 2. mars; modulen behandler den som ugyldig frist.
-3. Midnattsvinduet beskrevet over.
+1. Umulig kalenderdato (`2026-02-30`): appen ruller over til 2. mars; modulen behandler den som ugyldig frist.
+2. Midnattsvinduet: appen bruker UTC-dato og er én dag bak mellom 00:00 og ca. 02:00 norsk tid; modulen bruker Oslo-dato.
+
+Ellers er ekskludering, klasse, statustekst og «forfalt» identisk med appen i alle testede kombinasjoner.
 
 ## Tester
 
