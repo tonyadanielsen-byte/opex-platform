@@ -6,4 +6,5 @@ module.exports = {
   ...require('./activity-api'),
   ...require('./comment-participant-alerts'),
   ...require('./lor-notifications'),
+  ...require('./tiltak-events'),
 };
