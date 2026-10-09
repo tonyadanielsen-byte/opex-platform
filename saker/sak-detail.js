@@ -205,7 +205,7 @@
           h('ul', null, g.rader.map(function (a) {
             return h('li', { class: 'sak-event sak-event-' + a.kilde }, [
               h('span', { class: 'sak-event-ico' }, U.icon(a.ikon, 15)),
-              h('div', null, [h('span', { class: 'sak-event-text' }, a.tekst), h('small', null, [a.aktor ? a.aktor + ' · ' : '', U.fmtTid(a.createdAt)].join(''))]),
+              h('div', null, [h('span', { class: 'sak-event-text' }, a.tekst), h('small', null, [a.aktor ? a.aktor + ' · ' : '', U.fmtTid(a.createdAt)].join('')), a.detaljer ? h('details', { class: 'sak-grunnlag' }, [h('summary', null, 'Vis ' + a.detaljer.length + ' enkelthendelser'), h('ul', null, a.detaljer.map(function (e) { return h('li', null, e.tekst); }))]) : null]),
             ]);
           })),
         ]);
