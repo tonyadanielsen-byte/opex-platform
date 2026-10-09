@@ -1,4 +1,4 @@
-const CACHE_NAME = "opex-shell-v2.14.0-saker";
+const CACHE_NAME = "opex-shell-v2.14.1-saker-ux";
 const APP_SHELL = [
   "./", "./index.html", "./manifest.webmanifest", "./push-v1a.js", "./push-deeplink-v1d.js", "./ui-v1f.css", "./ui-v1f.js", "./live-v38.css", "./id-v1.js", "./quick-create-v1.js",
   "./saker/sak.css", "./saker/sak-logic.js", "./saker/sak-view-model.js", "./saker/sak-ui.js", "./saker/sak-store.js", "./saker/sak-forms.js", "./saker/sak-list.js", "./saker/sak-detail.js", "./saker/sak-app.js",
