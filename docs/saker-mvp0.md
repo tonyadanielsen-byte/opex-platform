@@ -76,6 +76,34 @@ skrives i **samme atomiske update** som endringen. Typer: `sak_opprettet`, `sak_
 `tiltak_frakoblet`, `spor_koblet`, `spor_frakoblet`, `arsak_opprettet`, `arsak_endret`, `arsak_fjernet`.
 `actorUid` er påkrevd.
 
+## Beregning av en sak (fase 1b): `saker/sak-logic.js`
+
+Én ren, DOM-fri, testet sannhet. Samme modul brukes av UI og senere av AI/evidence builder.
+Ingen DOM, Firebase, nettverk eller globale nettleserfunksjoner; henter aldri data selv; muterer ikke inndata.
+Lastes som klassisk `<script>` (`window.OpExSakLogic`) eller `require()` i Node.
+
+| Klasse | Regel |
+|---|---|
+| **Ekskludert** | papirkurv (`livssyklus === 'Papirkurv'` eller `papirkurv === true`) eller test (`miljo === 'Test'` eller `test === true`). Gjelder uansett status. |
+| **Gjort** | Fullført (også når tiltaket er arkivert/lagret) |
+| **Gjenstår** | Innmeldt, Til godkjenning, Aktiv. Tom status = Innmeldt. Ukjent status = gjenstår, men flagges i `datakvalitet.ukjentStatus`. |
+| **Forfalt** | *delmengde* av gjenstår med gyldig frist strengt før dagens Oslo-dato. Frist i dag er ikke forfalt. |
+| **Separat** | Stanset, Avsluttet. Ikke i fremdriftsnevneren. |
+
+Normalisering som `normStatus` i appen: Åpen → Innmeldt, Pågår → Aktiv, Avvist → Avsluttet.
+`totalt = gjort + gjenstår + stanset + avsluttet` (ekskluderte ikke med; se `kobletTotalt`).
+`fremdrift = gjort / (gjort + gjenstår)`, `null` hvis nevneren er 0.
+`naermesteFrist` = tidligste frist ≥ i dag blant gjenstående. `eldsteForfaltFrist` = tidligste forfalte.
+
+**Datoer:** «i dag» er alltid `Europe/Oslo`. Fristlogikk er strenglogikk på ÅÅÅÅ-MM-DD (kalenderregning i UTC),
+aldri lokal `Date`-parsing. Dagens app bruker UTC-dato i `today()`/`daysTo()` og får derfor «forfalt» feil med én
+dag mellom 00:00 og ca. 02:00 norsk tid; modulen gjør ikke den feilen.
+
+**Kjente, bevisste avvik fra dagens app** (målt mot appens egne funksjoner, 95 256 kombinasjoner):
+1. Arkivert/lagret tiltak med ikke-terminal status og gammel frist: appen sier «ikke forfalt», modulen sier forfalt.
+2. Umulig kalenderdato (`2026-02-30`): appen ruller over til 2. mars; modulen behandler den som ugyldig frist.
+3. Midnattsvinduet beskrevet over.
+
 ## Tester
 
 ```
