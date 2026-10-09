@@ -153,7 +153,7 @@
       field('Områder', omrader, 'Skill med komma.', { optional: true }),
       h('fieldset', { class: 'sak-fieldset' }, [
         h('legend', null, 'Spor'),
-        h('p', { class: 'sak-hint' }, 'Spor er spørsmålene saken skal besvare (f.eks. «Hvorfor ble det restlager?»). Tiltak og årsaker knyttes til spor. Spor settes når saken opprettes, og kan ikke endres senere.'),
+        h('p', { class: 'sak-hint' }, 'Spor er spørsmålene saken skal besvare (f.eks. «Hvorfor ble det restlager?»). Tiltak og årsaker knyttes til spor. Du kan også legge til nye spor senere.'),
         sporWrap, addBtn,
       ]),
     ]);
@@ -415,8 +415,24 @@
     });
   }
 
+  /* Nytt årsaksspor i en eksisterende sak. */
+  function nySpor(model) {
+    var sporsmal = input('', { maxlength: '200', 'data-autofocus': '1', placeholder: 'Hvilket spørsmål skal dette sporet besvare?' });
+    var body = h('div', { class: 'sak-form' }, [
+      field('Spørsmål', sporsmal, 'Spor samler tiltak og mulige årsaker rundt ett spørsmål.', { required: true }),
+    ]);
+    return openDialog({
+      title: 'Legg til spor', subtitle: model.sak.kode, submitLabel: 'Opprett spor', body: body,
+      onSubmit: async function () {
+        if (sporsmal.value.trim().length < 3) throw new Error('Spørsmålet må ha minst 3 tegn.');
+        var r = await S.createSpor({ sakId: model.sak.sakId, sporsmal: sporsmal.value.trim() });
+        toastOk('Spor ' + r.kode + ' er opprettet');
+      },
+    });
+  }
+
   root.OpExSakForms = Object.freeze({
-    openDialog: openDialog, nySak: nySak, endreSak: endreSak, endreStatus: endreStatus, kobleTiltak: kobleTiltak,
+    openDialog: openDialog, nySak: nySak, nySpor: nySpor, endreSak: endreSak, endreStatus: endreStatus, kobleTiltak: kobleTiltak,
     endreSporForTiltak: endreSporForTiltak, frakobleTiltak: frakobleTiltak, nyArsak: nyArsak, vurderArsak: vurderArsak, fjernArsak: fjernArsak,
   });
 }(typeof self !== 'undefined' ? self : this));
