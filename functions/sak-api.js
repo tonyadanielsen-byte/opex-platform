@@ -46,5 +46,6 @@ exports.getSakV1 = callable('getSakV1', core.getSak);
 exports.updateSakV1 = callable('updateSakV1', core.updateSak);
 exports.setTiltakSakV1 = callable('setTiltakSakV1', core.setTiltakSak);
 exports.removeTiltakSakV1 = callable('removeTiltakSakV1', core.removeTiltakSak);
+exports.createSporV1 = callable('createSporV1', core.createSpor);
 exports.createArsakV1 = callable('createArsakV1', core.createArsak);
 exports.updateArsakV1 = callable('updateArsakV1', core.updateArsak);
