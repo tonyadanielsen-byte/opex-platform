@@ -252,3 +252,15 @@ Ny fane **Saker** i OpEx Hub (egen modul i `saker/`, ingen overlay-script, ingen
 ```
 node --test tests/*.test.cjs        # Node 20+; kjør `npm install` i functions/ først for lastetestene
 ```
+
+
+## UX-oppfølging etter fase 1d (2026-10-09)
+
+Fire forbedringer er implementert på feature-branchen, **ikke deployet**:
+
+- Kaldstart-direktelenker til `#saker/<sakId>` aktiveres etter innlogging og første tiltakssnapshot.
+- Aktivitet koblet til samme tiltak/aktør innen 30 sekunder grupperes visuelt. Originalhendelsene vises i utvidbare detaljer; backendhistorikken endres ikke.
+- Mobil (≤ 640 px) bruker bunnmeny med Dashboard, Mine, Alle, Saker og Mer; Mer gir Lagrede tiltak, Nytt tiltak og Admin. Eksisterende desktopnavigasjon beholdes.
+- `createSporV1` gjør det mulig å legge til spor A–H senere, med autorisering, egen lås for kodeallokering, og samlet multi-path update for spor + sakEvent. Opprettingsdialogen er koblet til callable.
+
+**Teststatus:** oppdaterte JavaScript-filer og inline-script er syntakskontrollert. Fire isolerte kjernetester av `createSpor` med simulert RTDB er gjennomført (4/4). Full Node-/Chromium-regresjon, manuell mobilkontroll og integrasjon mot ekte Firebase er **ikke utført i denne gjennomgangen**. Ingen produksjonsmerge skal gjøres før disse er grønne. RTDB-regler og 1a-produksjonsverifisering er fortsatt åpne kontrollpunkter.
