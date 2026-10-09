@@ -267,11 +267,30 @@
       });
     });
     var alle = sorterHendelser(sakEv.concat(tiltakEv));
-    return alle.map(function (ev) {
+    var rader = alle.map(function (ev) {
       var b = beskrivAktivitet(ev, ctx);
       var dato = L.osloDato(ev.createdAt);
-      return { id: ev.id, kilde: ev.kilde, createdAt: ev.createdAt, dato: dato, dagerSiden: L.dagerMellom(dato, ctx.idag), ikon: b.ikon, tekst: b.tekst, aktor: b.aktor, tiltakId: ev.tiltakId || (ev.event.entityId && members[ev.event.entityId] ? ev.event.entityId : null) };
+      return { id: ev.id, kilde: ev.kilde, eventType: ev.event.type, createdAt: ev.createdAt, dato: dato, dagerSiden: L.dagerMellom(dato, ctx.idag), ikon: b.ikon, tekst: b.tekst, aktor: b.aktor, actorUid: ev.event.actorUid || '', tiltakId: ev.tiltakId || (ev.event.entityId && members[ev.event.entityId] ? ev.event.entityId : null) };
     });
+    // Skjul bare påfølgende spor-koblinger til samme tiltak/aktør innen 30 sekunder.
+    // Originalene bevares som detaljer; serverens hendelseslogg endres ikke.
+    var gruppert = [];
+    rader.forEach(function (rad) {
+      var forrige = gruppert[gruppert.length - 1];
+      var kombinasjon = forrige && rad.tiltakId && forrige.tiltakId === rad.tiltakId &&
+        forrige.actorUid === rad.actorUid && Math.abs(Date.parse(forrige.createdAt) - Date.parse(rad.createdAt)) <= 30000 &&
+        ((forrige.eventType === 'spor_koblet' && rad.eventType === 'tiltak_koblet') ||
+         (forrige.eventType === 'tiltak_koblet' && rad.eventType === 'spor_koblet'));
+      if (kombinasjon) {
+        var sporRad = rad.eventType === 'spor_koblet' ? rad : forrige;
+        var kobletRad = rad.eventType === 'tiltak_koblet' ? rad : forrige;
+        gruppert[gruppert.length - 1] = Object.assign({}, kobletRad, {
+          tekst: kobletRad.tekst + ' og ' + sporRad.tekst.replace(/^.*? ble koblet til /, 'koblet til '),
+          detaljer: [forrige, rad],
+        });
+      } else gruppert.push(rad);
+    });
+    return gruppert;
   }
 
   /* ------------------------------------------------------------------ hele sak-modellen */
