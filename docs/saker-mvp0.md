@@ -123,8 +123,8 @@ Filer: `functions/sak-core.js` (all logikk, databasen injiseres), `functions/sak
 | `getSakerV1` | Lett liste over alle saker |
 | `getSakV1` | Sak + spor + årsaker (inkl. fjernede) + tiltak-ids + spor-koblinger + hendelser i rå RTDB-form (direkte inn i `sak-logic.js`) |
 | `updateSakV1` | Tittel, problemstilling, status, eier, områder. **Status endres bare manuelt.** |
-| `setTiltakSakV1` | Kobler tiltak til sak og setter sporsettet (erstatter forrige). Idempotent. |
-| `removeTiltakSakV1` | Fjerner tiltaket fra saken. Idempotent. |
+| `setTiltakSakV1` | Kobler tiltak til sak og setter sporsettet (erstatter forrige). **To faser, ikke atomisk samlet** (se «Konsistens»). Idempotent. |
+| `removeTiltakSakV1` | Fjerner tiltaket fra saken. **To faser, ikke atomisk samlet** (se «Konsistens»). Idempotent. |
 | `createArsakV1` | Registrerer årsak under et spor |
 | `updateArsakV1` | Endrer status/grunnlag på stedet, reviderer tekst (ny årsak som erstatter), eller fjerner |
 
@@ -139,6 +139,7 @@ tiltak/{id}.sakId                          eneste endring på eksisterende data 
                                            opprettetAv, opprettetAt, fjernet, erstatter?
 /sakEvents/{sakId}/{eventKey}              se events-core.js (alltid med actorUid = request.auth.uid)
 /counters/sak                              heltall; transaksjon, aldri skanning
+/sakLocks/{tiltakId}                       {owner, until, uid} — kortlivet lås som serialiserer koble/frakoble på samme tiltak (driftsnode, ikke sakdata)
 ```
 
 Status sak: `Åpen | Under oppfølging | Avventer beslutning | Løst | Lukket` (standard `Åpen`).
@@ -146,36 +147,74 @@ Status årsak: `hypotese | støttet | bekreftet | avkreftet`; `støttet`/`bekref
 `vurdertAv`/`vurdertAt`/`opprettetAv`/`opprettetAt` og alle hendelser settes **av serveren**; forespørsler med ukjente felt
 avvises, så identitet og tidsstempel aldri kan sendes inn av klienten.
 
-### Konsistens (ingen delvis fullførte oppdateringer)
+### Konsistens: hva som er atomisk, og hva som ikke er det
 
-- Alle operasjoner som berører flere noder er **én multi-path `update()`** (atomisk), med endring og sakEvents sammen.
-- **Koble tiltak:** `tiltak.sakId` avgjøres med en **transaksjon på tiltaket** (kun én sak kan «vinne», også ved samtidige
-  forsøk). Deretter skrives spor-koblinger + hendelser i én atomisk update (3 forsøk). Feiler den, **rulles `sakId` tilbake**.
-  Hele operasjonen er idempotent og kan trygt gjentas.
-- **Frakoble:** samme mønster. Feiler skrivingen etter frikobling, er medlemskapet (sannheten) allerede fjernet; gjenværende
-  spor-koblinger er foreldreløse, ignoreres (`ugyldigeKoblinger`) og erstattes ved neste kobling.
-- Ett tiltak kan bare tilhøre **én** sak; flytting krever eksplisitt frakobling først.
-- **Revisjon av årsakstekst** lager en ny årsak (`erstatter`) og markerer den gamle `fjernet`; status nullstilles til `hypotese`.
-  Fjernede årsaker kan ikke endres (append-only).
-- Lukket sak: innhold (tiltak, årsaker, tittel …) kan ikke endres før saken åpnes igjen; status kan alltid settes.
-- Fritekst (tittel, problemstilling, årsakstekst, grunnlag) skrives **aldri** i sakEvents.
+**Atomisk (én multi-path `update()`, alt eller ingenting):** opprette sak, oppdatere sak, opprette/endre/fjerne årsak. Endringen og
+`sakEvents` skrives alltid i samme update.
+
+**IKKE atomisk samlet: «koble tiltak til sak» og «frakoble».** De skrives i to faser, og hver fase er atomisk for seg:
+
+| Fase | Hva | Mekanisme |
+|---|---|---|
+| 0 | Serialisering | Per-tiltak-lås `/sakLocks/{tiltakId}` (transaksjon, eier-token, utløper etter 45 s) |
+| 1 | Medlemskap (`tiltak.sakId`) | Transaksjon på tiltaket: bare én sak kan «vinne» |
+| 2 | Spor-koblinger + `sakEvents` | Én atomisk update (3 forsøk) |
+
+Det som holder koblingen konsistent er derfor **ikke atomitet, men fire ting sammen**:
+
+1. **Låsen** hindrer at to operasjoner på samme tiltak flettes mellom fasene. Uten den kunne en tilbakerulling fjerne en nyere, gyldig
+   kobling, to koblinger bygge på hverandre, og samtidige frakoblinger skrive dupliserte hendelser (alle reprodusert i testene).
+   Operasjoner på *ulike* tiltak blokkerer ikke hverandre. Opptatt lås gir `aborted` («prøv igjen om litt») etter 5 forsøk.
+2. **Kompensasjon:** feiler fase 2, rulles fase 1 tilbake (koble: fjern `sakId`; frakoble: gjenopprett `sakId`). Rullingen skjer
+   **bare** hvis vi fortsatt eier låsen, **bare** hvis tiltaket fortsatt har vår `sakId` (aldri overskriv en annen saks kobling), og
+   meldes som «rullet tilbake» **bare** hvis transaksjonen faktisk ble committet. Ellers sies «delvis lagret».
+3. **Idempotens:** samme kall kan gjentas. Koble erstatter hele spor-settet; frakoble rydder også en avbrutt frakobling
+   (ikke-medlem med gjenværende koblinger gir `tiltak_frakoblet` + opprydding, slik at historikken heles).
+4. **Trygg lesing:** spor-koblinger gjelder bare for tiltak som har `tiltak.sakId === sakId`; resten ignoreres og rapporteres som
+   `ugyldigeKoblinger`.
+
+`claimed`/`released` i transaksjonscallbackene: callbacken kan kjøres flere ganger (kald cache gir `null` først; samtidige
+skrivinger gir nye kjøringer). Variablene nullstilles i hver kjøring, og bare den siste, committede kjøringen brukes. Callbacken
+bygger alltid på de ferske dataene den får, så samtidige endringer på andre felt på tiltaket går ikke tapt.
+
+**Gjenværende hull (dobbeltfeil / prosess som dør):**
+- *Koble:* feiler både fase 2 og kompensasjonen, eller dør prosessen etter fase 1, står tiltaket i saken uten spor-koblinger og uten
+  `tiltak_koblet` i `sakEvents`. Gjentakelse fullfører sporene, men kan ikke vite at `tiltak_koblet` mangler. Endringen er likevel
+  logget i `tiltakEvents` (uten bruker). Foreldreløse koblinger kan i mellomtiden ligge igjen ved frakobling; de ignoreres av lesere.
+- *Låsen:* utløper den (45 s, mer enn funksjonens 30 s timeout) før operasjonen er ferdig, skriver operasjonen ikke mer og ruller ikke
+  tilbake (en annen kan ha tatt over); den melder «delvis lagret». En lås som blir stående etter en krasj stenger tiltaket i maks 45 s.
+- *Tapt oppdatering mot lukking:* en sak som lukkes i samme øyeblikk som en kobling pågår, kan få koblingen gjennomført.
+- Direkte skriving til `tiltak.sakId` utenom disse funksjonene (f.eks. fra konsollen) omgår låsen og historikken.
+
+**Øvrige regler:**
+- Ett tiltak tilhører **én** sak; flytting krever eksplisitt frakobling først.
+- **Endret årsakstekst** gir en ny versjon (`erstatter`, den gamle markeres `fjernet`) med status `hypotese`, med mindre ny status
+  **og** grunnlag uttrykkelig oppgis i samme kall. Fjernede årsaker kan ikke endres (append-only).
+- Lukket sak er låst for innholdsendringer, men kan åpnes igjen manuelt (endre status). Sak-status endres aldri automatisk.
+- Hendelser er **begrenset** til de nyeste (100 per tiltak, 300 for saken). `getSakV1` returnerer `avkortet` som forteller at det kan
+  finnes eldre; «siste aktivitet» påvirkes ikke fordi de nyeste alltid er med. Paginering kan komme senere.
+- Fritekst (tittel, problemstilling, årsakstekst, grunnlag) skrives **aldri** i `sakEvents`.
 
 ### Begrensninger og kjent risiko (må leses før deploy)
 
-1. **Testet mot en SIMULERT database**, ikke ekte Firebase. Simulatoren er bevisst streng (ugyldige nøkler, `undefined`,
-   overlappende stier, transaksjonssemantikk med kald cache, samtidige skrivinger, feilinjeksjon), men den beviser logikken,
-   ikke at ekte RTDB/admin-SDK oppfører seg likt. Callable-bindingen er bare lastetestet.
-2. **Dobbeltfeil:** feiler både skrivingen og tilbakerullingen ved kobling, blir tiltaket stående med `sakId` uten spor-koblinger.
-   Gjentakelse fullfører sporene, men `tiltak_koblet` mangler da i `sakEvents` (endringen er likevel logget i `tiltakEvents`, uten bruker).
-3. **Samtidig redigering av samme sak/årsak** (`updateSak`, `updateArsak`) er last-write-wins; `foer` i hendelsen kan være feil
+1. **RTDB-reglene er IKKE verifisert.** De er ikke versjonsstyrt, og jeg har aldri sett dem. All sikkerhet i Saker bygger på at
+   (a) alle sak-noder bare nås via disse funksjonene, og (b) dagens regler er deny-by-default for ukjente noder (`/saker`, `/sakSpor`,
+   `/sakTiltakSpor`, `/sakArsaker`, `/sakEvents`, `/sakLocks`, `/counters`, `/tiltakEvents`). Hvis (b) ikke stemmer, kan
+   innloggede brukere lese eller skrive disse nodene direkte og omgå validering, låser og historikk. **Hent og versjonsstyr reglene før Saker brukes
+   utover pilotgruppen.** (Eksisterende tiltak har samme avhengighet i dag.)
+2. **Testet mot en SIMULERT database**, ikke ekte Firebase. Simulatoren er bevisst streng (ugyldige nøkler, `undefined`,
+   overlappende stier, transaksjonssemantikk med kald cache, samtidige skrivinger og flettede operasjoner, feilinjeksjon, tapt lås,
+   hengende prosesser), men den beviser logikken, ikke at ekte RTDB/admin-SDK oppfører seg likt (f.eks. faktisk transaksjonsretry og
+   tidsavbrudd). Callable-bindingen er bare lastetestet. Ekte Firebase er ikke testet.
+3. Hull i «Gjenværende hull» over.
+4. **Samtidig redigering av samme sak/årsak** (`updateSak`, `updateArsak`) er last-write-wins; `foer` i hendelsen kan være feil
    hvis to personer endrer akkurat samme felt i samme øyeblikk. Akseptabelt for få piloter.
-4. **Saksnummer** kan få hull (nummer tildeles før skrivingen), aldri duplikater.
-5. **Ingen rate limiting / App Check** (som resten av OpEx). Ingen regelendring: nodene er kun tilgjengelige via disse funksjonene
-   forutsatt at dagens RTDB-regler er deny-by-default for ukjente noder (**ikke verifisert**).
-6. `getSakV1` finner saksmedlemmer med `orderByChild('sakId')` uten `.indexOn`; admin-SDK leser da alle tiltak (greit for hundrevis).
-7. Spor kan bare opprettes sammen med saken (ingen «legg til spor» ennå). Ingen sletting av saker.
-8. Hendelser i samme millisekund har tilfeldig rekkefølge innen én operasjon (tilfeldig suffiks i nøkkelen).
-9. Funksjonene er IKKE deployet; merge til `main` deployer dem (se avsnittet om deploy under 1a).
+5. **Saksnummer** kan få hull (nummer tildeles før skrivingen), aldri duplikater.
+6. **Ingen rate limiting / App Check** (som resten av OpEx). Pilot: alle med `authorizedUsers` kan opprette og koble.
+7. `getSakV1` finner saksmedlemmer med `orderByChild('sakId')` uten `.indexOn`; admin-SDK leser da alle tiltak (greit for hundrevis).
+8. Spor kan bare opprettes sammen med saken. Ingen sletting av saker.
+9. Hendelser i samme millisekund har tilfeldig rekkefølge innen én operasjon (tilfeldig suffiks i nøkkelen).
+10. Funksjonene er IKKE deployet; merge til `main` deployer dem (se avsnittet om deploy under 1a).
 
 ## Tester
 

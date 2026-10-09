@@ -56,6 +56,7 @@ class Query {
   limitToLast(n) { return new Query(this.db, this.path, { ...this.mods, last: n }); }
   async get() {
     this.db.reads.push(this.path);
+    if (this.db.onGet) await this.db.onGet(this.path);
     const node = this.db._get(segments(this.path));
     if (!this.mods.order && !this.mods.last && !('equal' in this.mods)) {
       return new Snapshot(this.path.split('/').pop() || null, node); // vanlig get(): selve verdien (også enkeltverdier)
@@ -82,6 +83,7 @@ class Ref extends Query {
     const base = segments(this.path);
     const abs = {};
     for (const [k, v] of Object.entries(updates)) abs['/' + [...base, ...segments(k)].join('/')] = v;
+    if (this.db.onBeforeUpdate) await this.db.onBeforeUpdate(Object.keys(abs));
     return this.db._applyMany(abs, true);
   }
   async transaction(fn) {
@@ -97,8 +99,11 @@ class FakeRtdb {
     this.updateCalls = [];   // vellykkede update()-kall (dyp kopi)
     this.transactionCalls = []; // {path, committed}
     this.failUpdates = 0;    // antall kommende update()-kall som skal feile
+    this.failWhen = null;    // (updates) => boolean — feiler bare update()-kall som matcher (målrettet feilinjeksjon)
+    this.onBeforeUpdate = null; // async (paths) => void — kjøres rett FØR en update() skrives (lar andre operasjoner slippe til)
     this.beforeCommit = null; // (path) => void  — kjøres midt i en transaksjon (simulerer samtidig skriving)
-    this.onTransaction = null; // (path) => void — kan kaste for å simulere transaksjonsfeil
+    this.onGet = null;       // async (path) => void — kjøres før en lesing (lar en test endre tilstand på et presist sted)
+    this.onTransaction = null; // async (path) => void — kjøres før en transaksjon starter; kan kaste eller kjøre andre operasjoner
     this._keys = 0;
   }
   ref(path = '/') { return new Ref(this, '/' + segments(path).join('/')); }
@@ -139,12 +144,13 @@ class FakeRtdb {
         if (a.slice(0, n).join('/') === b.slice(0, n).join('/')) throw new Error('Overlappende stier i update(): ' + a.join('/') + ' og ' + b.join('/'));
       }
     }
+    if (isUpdate && this.failWhen && this.failWhen(clone(paths))) throw new Error('simulert databasefeil (målrettet)');
     if (this.failUpdates > 0) { this.failUpdates -= 1; throw new Error('simulert databasefeil'); }
     for (const [segs, value] of entries) this._setRaw(segs, clone(value));
     if (isUpdate) this.updateCalls.push(clone(paths));
   }
   async _transaction(path, fn) {
-    if (this.onTransaction) this.onTransaction(path);
+    if (this.onTransaction) await this.onTransaction(path);
     const segs = segments(path);
     let seen = this.coldTransactions ? null : clone(this._get(segs));
     for (let attempt = 0; attempt < 25; attempt++) {

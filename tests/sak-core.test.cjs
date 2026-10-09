@@ -305,6 +305,26 @@ test('getSak: begrenser hendelser til de nyeste per tiltak', async () => {
   assert.equal(keys.length, core.LIMITS.tiltakEventsPerTiltak);
   assert.ok(keys.includes('0000000000149-evt'));
   assert.equal(keys.includes('0000000000000-evt'), false);
+  assert.deepEqual(d.avkortet, { tiltakEvents: ['-Ot1'], sakEvents: false }, 'avkorting signaliseres, så konsumenter vet at det kan finnes eldre hendelser');
+});
+
+test('getSak: avkortet-signalet er falskt når alle hendelser er med, og sakEvents avkortes til de nyeste (sisteAktivitet er fortsatt riktig)', async () => {
+  const e = env({ tiltak: { '-Ot1': tiltak() } });
+  const r = await ribbefett(e);
+  await core.setTiltakSak(e.deps, A, { sakId: r.sakId, tiltakId: '-Ot1' });
+  e.db.data.tiltakEvents = { '-Ot1': { '0000000000001-e': { type: 'endret', createdAt: '2026-10-09T09:00:00.000Z' } } };
+  let d = await core.getSak(e.deps, A, { sakId: r.sakId });
+  assert.deepEqual(d.avkortet, { tiltakEvents: [], sakEvents: false });
+  // 350 sakshendelser: de 300 nyeste returneres
+  const mange = {};
+  for (let i = 0; i < 350; i++) mange[String(1000000000000 + i).padStart(13, '0') + '-x'] = { type: 'sak_endret', createdAt: new Date(Date.parse('2026-01-01T00:00:00Z') + i * 60000).toISOString(), actorUid: A };
+  e.db.data.sakEvents[r.sakId] = { ...e.db.data.sakEvents[r.sakId], ...mange };
+  d = await core.getSak(e.deps, A, { sakId: r.sakId });
+  assert.equal(Object.keys(d.sakEvents).length, core.LIMITS.sakEvents);
+  assert.equal(d.avkortet.sakEvents, true);
+  const newest = Math.max(...Object.values(d.sakEvents).map((x) => Date.parse(x.createdAt)));
+  const all = Math.max(...Object.values(e.db.at(`/sakEvents/${r.sakId}`)).map((x) => Date.parse(x.createdAt)));
+  assert.equal(newest, all, 'den nyeste hendelsen er alltid med, så «siste aktivitet» påvirkes ikke av avkortingen');
 });
 
 test('getSak-resultatet kan mates rett inn i sak-logic (én sannhet for beregningen)', async () => {
@@ -598,7 +618,7 @@ test('KJENT BEGRENSNING: feiler både skriving og tilbakerulling, står medlemsk
   const r = await ribbefett(e);
   e.db.failUpdates = 3;
   let tx = 0;
-  e.db.onTransaction = () => { tx += 1; if (tx >= 2) throw new Error('transaksjon nede'); };
+  e.db.onTransaction = (p) => { if (p === '/tiltak/-Ot1') { tx += 1; if (tx >= 2) throw new Error('transaksjon nede'); } };
   await rejectsWith(core.setTiltakSak(e.deps, A, { sakId: r.sakId, tiltakId: '-Ot1', sporIds: [r.sporA] }), 'internal', /delvis/);
   assert.equal(e.db.at('/tiltak/-Ot1/sakId'), r.sakId, 'medlemskapet står (rollback feilet)');
   assert.equal(e.db.at('/sakTiltakSpor'), null);
@@ -640,7 +660,8 @@ test('frakoble er idempotent og ryddet: ikke-koblet tiltak gir ingen endring; fo
   const rydd = await core.removeTiltakSak(e.deps, A, { sakId: r.sakId, tiltakId: '-Ot1' });
   assert.equal(rydd.endret, true);
   assert.equal(e.db.at('/sakTiltakSpor'), null);
-  assert.deepEqual(typer(e.db, r.sakId).sort(), ['sak_opprettet', 'spor_frakoblet']);
+  assert.deepEqual(typer(e.db, r.sakId).sort(), ['sak_opprettet', 'spor_frakoblet', 'tiltak_frakoblet'],
+    'avbrutt frakobling: medlemskapets slutt skrives nå også (ellers ville historikken mangle den for alltid)');
 });
 
 test('frakoble fra feil sak avvises; ukjent tiltak/sak gir not-found', async () => {
@@ -665,12 +686,33 @@ test('frakoble: samtidig flytting til annen sak midt i operasjonen gir aborted o
   assert.deepEqual(e.db.at(`/sakTiltakSpor/${r1.sakId}/-Ot1`), { [r1.sporA]: true }, 'koblingene er ikke slettet');
 });
 
-test('frakoble: skrivefeil etter frikobling gir tydelig feil; foreldreløse koblinger ignoreres og erstattes ved ny kobling', async () => {
+test('frakoble: skrivefeil etter frikobling rulles tilbake (medlemskapet gjenopprettes), og en ny kjøring fullfører', async () => {
+  const original = tiltak();
+  const e = env({ tiltak: { '-Ot1': original } });
+  const r = await ribbefett(e);
+  await core.setTiltakSak(e.deps, A, { sakId: r.sakId, tiltakId: '-Ot1', sporIds: [r.sporA] });
+  const før = e.db.at('/tiltak/-Ot1');
+  const eventsFør = sakEvents(e.db, r.sakId).length;
+  e.db.failUpdates = 3;
+  await rejectsWith(core.removeTiltakSak(e.deps, A, { sakId: r.sakId, tiltakId: '-Ot1' }), 'internal', /rullet tilbake/);
+  assert.deepEqual(e.db.at('/tiltak/-Ot1'), før, 'tiltaket er som før operasjonen');
+  assert.deepEqual(e.db.at(`/sakTiltakSpor/${r.sakId}/-Ot1`), { [r.sporA]: true }, 'spor-koblingene står som før');
+  assert.equal(sakEvents(e.db, r.sakId).length, eventsFør, 'ingen hendelser skrevet');
+  assert.equal(e.db.at('/sakLocks'), null);
+  assert.equal((await core.removeTiltakSak(e.deps, A, { sakId: r.sakId, tiltakId: '-Ot1' })).endret, true);
+  assert.equal(e.db.at('/tiltak/-Ot1/sakId'), null);
+  assert.equal(e.db.at('/sakTiltakSpor'), null);
+});
+
+test('frakoble: feiler både skriving og gjenoppretting, ignoreres foreldreløse koblinger av lesere, ryddes (med frakobling i historikken) og erstattes ved ny kobling', async () => {
   const e = env({ tiltak: { '-Ot1': tiltak() } });
   const r = await ribbefett(e);
   await core.setTiltakSak(e.deps, A, { sakId: r.sakId, tiltakId: '-Ot1', sporIds: [r.sporA] });
   e.db.failUpdates = 3;
-  await rejectsWith(core.removeTiltakSak(e.deps, A, { sakId: r.sakId, tiltakId: '-Ot1' }), 'internal', /på nytt/);
+  let n = 0;
+  e.db.onTransaction = async (p) => { if (p === '/tiltak/-Ot1' && ++n >= 2) throw new Error('tx nede'); }; // gjenopprettingen kaster
+  await rejectsWith(core.removeTiltakSak(e.deps, A, { sakId: r.sakId, tiltakId: '-Ot1' }), 'internal', /delvis/);
+  e.db.onTransaction = null;
   assert.equal(e.db.at('/tiltak/-Ot1/sakId'), null, 'medlemskap (sannheten) er fjernet');
   const d = await core.getSak(e.deps, A, { sakId: r.sakId });
   assert.deepEqual(d.tiltakSpor, {});
@@ -806,6 +848,36 @@ test('ny ordlyd lager en NY årsak som erstatter den gamle; status nullstilles t
   const rev2 = await core.updateArsak(e.deps, B, { sakId: r.sakId, arsakId: res.arsakId, tekst: 'Enda en ordlyd her', status: 'støttet', grunnlag: 'Nytt grunnlag' });
   assert.equal(e.db.at(`/sakArsaker/${r.sakId}/${rev2.arsakId}/status`), 'støttet');
   assert.equal(e.db.at(`/sakArsaker/${r.sakId}/${rev2.arsakId}/erstatter`), res.arsakId);
+});
+
+test('endret årsakstekst gir ny versjon med status hypotese, med mindre ny status OG grunnlag uttrykkelig oppgis', async () => {
+  const e = env();
+  const r = await ribbefett(e);
+  const start = async () => core.createArsak(e.deps, A, { sakId: r.sakId, sporId: r.sporA, tekst: 'Opprinnelig ordlyd', status: 'bekreftet', grunnlag: 'Opprinnelig grunnlag' });
+  const lagret = (res) => e.db.at(`/sakArsaker/${r.sakId}/${res.arsakId}`);
+
+  // 1) bare ny tekst: hypotese, ingen overført status eller grunnlag
+  let a = await start();
+  let rev = await core.updateArsak(e.deps, B, { sakId: r.sakId, arsakId: a.arsakId, tekst: 'Ny ordlyd en' });
+  assert.equal(lagret(rev).status, 'hypotese');
+  assert.equal('grunnlag' in lagret(rev), false);
+  assert.equal(lagret(rev).erstatter, a.arsakId);
+  // 2) ny tekst + bare grunnlag: fortsatt hypotese (grunnlaget godkjenner ikke en status)
+  a = await start();
+  rev = await core.updateArsak(e.deps, B, { sakId: r.sakId, arsakId: a.arsakId, tekst: 'Ny ordlyd to', grunnlag: 'Nytt grunnlag' });
+  assert.equal(lagret(rev).status, 'hypotese');
+  assert.equal(lagret(rev).grunnlag, 'Nytt grunnlag');
+  // 3) ny tekst + ny status uten grunnlag: avvist (ingenting skrives)
+  a = await start();
+  const before = JSON.stringify(e.db.at('/sakArsaker'));
+  await rejectsWith(core.updateArsak(e.deps, B, { sakId: r.sakId, arsakId: a.arsakId, tekst: 'Ny ordlyd tre', status: 'bekreftet' }), 'invalid-argument', /krever et grunnlag/);
+  assert.equal(JSON.stringify(e.db.at('/sakArsaker')), before);
+  // 4) ny tekst + ny status + grunnlag: uttrykkelig godkjent
+  rev = await core.updateArsak(e.deps, B, { sakId: r.sakId, arsakId: a.arsakId, tekst: 'Ny ordlyd fire', status: 'bekreftet', grunnlag: 'Verifisert mot batchlogg' });
+  assert.equal(lagret(rev).status, 'bekreftet');
+  assert.equal(lagret(rev).vurdertAv, B, 'godkjent av den som reviderte, ikke den opprinnelige');
+  assert.equal(e.db.at(`/sakArsaker/${r.sakId}/${a.arsakId}/fjernet`), true, 'den gamle versjonen er bevart og fjernet');
+  assert.equal(e.db.at(`/sakArsaker/${r.sakId}/${a.arsakId}/status`), 'bekreftet', 'og beholder sin opprinnelige status');
 });
 
 test('fjerne årsak: fjernet=true med hendelse; kan ikke endres eller fjernes igjen; kan ikke kombineres med andre felt', async () => {

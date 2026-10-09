@@ -8,19 +8,19 @@
  * Arkitekturregler (låst):
  *  1. tiltak.sakId er eneste kilde til hvilken sak et tiltak tilhører.
  *  2. Aggregater lagres ikke (ingen tellere, ingen «sist oppdatert» på saken).
- *  3. Historikk (sakEvents) er append-only og skrives av server, i SAMME atomiske update som endringen.
+ *  3. Historikk (sakEvents) er append-only og skrives av server, i SAMME atomiske update som selve endringen
+ *     (for koble/frakoble: sammen med spor-koblingene; medlemskapet skrives i en egen transaksjon, se «Konsistens»).
  *  4. (UI/modul – ikke relevant her.)
  *  5. AI skriver aldri i disse datafeltene.
  *
  * Tilgang (pilot): innlogget bruker som finnes i /authorizedUsers/{uid} === true. Ingen hardkodede uid-er.
  * Identitet i hendelser og vurdertAv/opprettetAv kommer ALLTID fra request.auth.uid, aldri fra klienten.
  *
- * Konsistens uten delvis fullførte oppdateringer:
- *  - Alle skriveoperasjoner som berører flere noder gjøres som ÉN multi-path update() (atomisk).
- *  - Eneste unntak er «koble tiltak til sak»: medlemskapet (tiltak.sakId) avgjøres med en transaksjon på
- *    tiltaket (kun én sak kan «vinne»), og resten (spor-koblinger + sakEvents) skrives deretter i én
- *    atomisk update. Feiler den, rulles medlemskapet tilbake. Operasjonen er idempotent, så den kan
- *    trygt kjøres på nytt. Se docs/saker-mvp0.md for begrensninger.
+ * Konsistens:
+ *  - Operasjoner som berører flere noder er ÉN multi-path update() (atomisk), med endring og sakEvents sammen.
+ *  - «Koble tiltak til sak» og «frakoble» er IKKE atomiske samlet: medlemskap (tiltak.sakId) skrives med en transaksjon
+ *    på tiltaket, deretter spor-koblinger + hendelser i én atomisk update. De er serialisert per tiltak med en kortlivet lås,
+ *    kompensert ved feil i fase 2 og idempotente. Se docs/saker-mvp0.md («Konsistens») for garantier og gjenværende hull.
  */
 
 const { buildSakEvent, sakEventWrites } = require('./events-core');
@@ -42,6 +42,9 @@ const LIMITS = Object.freeze({
   tiltakEventsPerTiltak: 100,
   sakEvents: 300,
   updateAttempts: 3,
+  lockMs: 45000,           // lengre enn funksjonens timeout (30 s)
+  lockAttempts: 5,
+  compensationAttempts: 2,
 });
 
 // RTDB-nøkler: ikke . $ # [ ] / eller kontrolltegn.
@@ -338,6 +341,11 @@ async function getSak(deps, uid, raw) {
     ugyldigeKoblinger: ugyldigeKoblinger.sort(),
     tiltakEvents,
     sakEvents: sakEvents.val() || {},
+    // Hendelser er begrenset til de nyeste (ingen paginering i første versjon). `avkortet` forteller at det kan finnes eldre.
+    avkortet: {
+      tiltakEvents: tiltakIds.filter((id) => Object.keys(tiltakEvents[id] || {}).length >= LIMITS.tiltakEventsPerTiltak),
+      sakEvents: Object.keys(sakEvents.val() || {}).length >= LIMITS.sakEvents,
+    },
     hentetAt: deps.now().toISOString(),
   };
 }
@@ -393,9 +401,87 @@ async function updateSak(deps, uid, raw) {
   return { sakId, endret: true, felter };
 }
 
+/* ------------------------------------------------------------ per-tiltak-lås */
+
+/*
+ * VIKTIG: «koble»/«frakoble» er IKKE én atomisk operasjon. De skrives i to faser:
+ *   fase 1: medlemskap (tiltak.sakId), en transaksjon på selve tiltaket
+ *   fase 2: spor-koblinger + sakEvents, én atomisk multi-path update
+ * Hver fase er atomisk for seg; mellom dem kan prosessen feile eller en annen operasjon slippe til.
+ * Derfor:
+ *  - Operasjoner på SAMME tiltak serialiseres med en kortlivet lås i /sakLocks/{tiltakId}
+ *    (transaksjon, eier-token, utløper etter lockMs, lengre enn funksjonens timeout). Uten låsen kunne en
+ *    tilbakerulling fjerne en nyere, gyldig kobling, to koblinger kunne bygge på hverandre, og samtidige
+ *    frakoblinger kunne gi dupliserte hendelser.
+ *  - Feiler fase 2, kompenseres fase 1 (koble: fjern sakId; frakoble: gjenopprett sakId), bare hvis vi
+ *    fortsatt eier låsen og bare hvis kompensasjonen faktisk ble committet.
+ *  - Operasjonene er idempotente, og tilstanden er alltid trygg å lese: spor-koblinger uten medlemskap
+ *    ignoreres. Gjenværende hull (dobbeltfeil) er beskrevet i docs/saker-mvp0.md.
+ */
+
+async function acquireLock(deps, tiltakId, uid) {
+  const owner = deps.db.ref('/sakLocks').push().key;
+  for (let attempt = 1; attempt <= LIMITS.lockAttempts; attempt++) {
+    const nowMs = deps.now().getTime();
+    const tx = await deps.db.ref(`/sakLocks/${tiltakId}`).transaction((cur) => {
+      if (isObject(cur) && typeof cur.until === 'number' && cur.until > nowMs && cur.owner !== owner) return undefined; // holdt av andre
+      return { owner, until: nowMs + LIMITS.lockMs, uid };
+    });
+    if (tx.committed) return owner;
+    if (attempt < LIMITS.lockAttempts) await deps.sleep(200 * attempt);
+  }
+  fail('aborted', 'Tiltaket oppdateres akkurat nå av en annen operasjon. Prøv igjen om litt.');
+}
+
+async function lockHeld(deps, tiltakId, owner) {
+  const cur = (await deps.db.ref(`/sakLocks/${tiltakId}`).get()).val();
+  return isObject(cur) && cur.owner === owner && typeof cur.until === 'number' && cur.until > deps.now().getTime();
+}
+
+async function releaseLock(deps, tiltakId, owner) {
+  try {
+    await deps.db.ref(`/sakLocks/${tiltakId}`).transaction((cur) => {
+      if (cur === null || cur === undefined) return null;      // kald cache, eller allerede borte
+      if (isObject(cur) && cur.owner === owner) return null;   // vår lås: fjern
+      return undefined;                                        // noen andres lås: aldri rør
+    });
+  } catch (error) {
+    // Låsen utløper uansett. En feil her skal ikke gjøre en vellykket operasjon til en feil.
+    deps.log.error('sak-core: kunne ikke frigjøre lås', { tiltakId, error: String(error?.message || error) });
+  }
+}
+
+async function withTiltakLock(deps, tiltakId, uid, operation) {
+  const owner = await acquireLock(deps, tiltakId, uid);
+  try {
+    return await operation({ held: () => lockHeld(deps, tiltakId, owner) });
+  } finally {
+    await releaseLock(deps, tiltakId, owner);
+  }
+}
+
+/**
+ * Kompenserende transaksjon på tiltaket (med ett nytt forsøk ved feil).
+ * Returnerer true BARE hvis transaksjonen ble committet; en avbrutt transaksjon er ikke en utført kompensasjon.
+ */
+async function compensate(deps, tiltakId, fn) {
+  for (let attempt = 1; attempt <= LIMITS.compensationAttempts; attempt++) {
+    try {
+      const tx = await deps.db.ref(`/tiltak/${tiltakId}`).transaction(fn);
+      return tx.committed === true && tx.snapshot.exists();
+    } catch (error) {
+      deps.log.error('sak-core: kompensasjon feilet', { tiltakId, attempt, error: String(error?.message || error) });
+      if (attempt < LIMITS.compensationAttempts) await deps.sleep(150 * attempt);
+    }
+  }
+  return false;
+}
+
+const DELVIS = 'Koblingen ble bare delvis lagret. Prøv samme operasjon på nytt; den er trygg å gjenta.';
+
 /**
  * Kobler et eksisterende tiltak til saken og setter hvilke spor det hører til (erstatter forrige sett).
- * Idempotent: kan kjøres på nytt, også for å rette opp etter en feil.
+ * To faser (se over): ikke atomisk samlet, men serialisert per tiltak, kompensert og idempotent.
  */
 async function setTiltakSak(deps, uid, raw) {
   const input = objectInput(raw, ['sakId', 'tiltakId', 'sporIds']);
@@ -404,124 +490,147 @@ async function setTiltakSak(deps, uid, raw) {
   const tiltakId = requireId(input.tiltakId, 'tiltakId');
   const sporIds = idList(input.sporIds, 'sporIds', LIMITS.sporMax);
 
-  const sak = await loadSak(deps, sakId);
-  assertOpen(sak);
-  const sporVal = (await deps.db.ref(`/sakSpor/${sakId}`).get()).val() || {};
-  for (const id of sporIds) if (!isObject(sporVal[id])) fail('invalid-argument', 'Ukjent spor for denne saken.');
+  return withTiltakLock(deps, tiltakId, actor, async (lock) => {
+    const sak = await loadSak(deps, sakId);
+    assertOpen(sak);
+    const sporVal = (await deps.db.ref(`/sakSpor/${sakId}`).get()).val() || {};
+    for (const id of sporIds) if (!isObject(sporVal[id])) fail('invalid-argument', 'Ukjent spor for denne saken.');
 
-  const tiltak = (await deps.db.ref(`/tiltak/${tiltakId}`).get()).val();
-  if (!isObject(tiltak)) fail('not-found', 'Tiltaket finnes ikke.');
-  if (tiltak.livssyklus === 'Papirkurv' || tiltak.papirkurv === true) fail('failed-precondition', 'Tiltak i papirkurven kan ikke kobles til en sak.');
-  const eksisterende = clean(tiltak.sakId);
-  if (eksisterende && eksisterende !== sakId) {
-    const annen = (await deps.db.ref(`/saker/${eksisterende}`).get()).val();
-    fail('failed-precondition', `Tiltaket tilhører allerede ${isObject(annen) && annen.kode ? annen.kode : 'en annen sak'}. Fjern det derfra først.`);
-  }
-
-  // Medlemskap avgjøres atomisk på selve tiltaket: bare én sak kan «vinne», også ved samtidige forsøk.
-  let claimed = false;
-  const tx = await deps.db.ref(`/tiltak/${tiltakId}`).transaction((cur) => {
-    if (cur === null || cur === undefined) return null; // kald cache: serveren prøver på nytt med ekte verdi
-    if (!isObject(cur)) return undefined;
-    const have = clean(cur.sakId);
-    if (have && have !== sakId) return undefined;
-    claimed = !have;
-    return have ? cur : { ...cur, sakId };
-  });
-  if (!tx.snapshot.exists()) fail('not-found', 'Tiltaket finnes ikke.');
-  if (!tx.committed) fail('aborted', 'Tiltaket ble koblet til en annen sak samtidig. Last inn på nytt.');
-
-  const forrige = (await deps.db.ref(`/sakTiltakSpor/${sakId}/${tiltakId}`).get()).val();
-  const forrigeIds = claimed ? [] : Object.keys(isObject(forrige) ? forrige : {}).filter((k) => forrige[k] === true);
-  const lagtTil = sporIds.filter((id) => !forrigeIds.includes(id));
-  const fjernet = forrigeIds.filter((id) => !sporIds.includes(id));
-  if (!claimed && !lagtTil.length && !fjernet.length) return { sakId, tiltakId, endret: false, sporIds };
-
-  const hendelser = [];
-  if (claimed) hendelser.push({ type: 'tiltak_koblet', entityId: tiltakId, felt: 'sakId', etter: sakId });
-  for (const id of lagtTil) hendelser.push({ type: 'spor_koblet', entityId: tiltakId, felt: 'sporId', etter: id });
-  for (const id of fjernet) hendelser.push({ type: 'spor_frakoblet', entityId: tiltakId, felt: 'sporId', foer: id });
-
-  const updates = {
-    // Hele settet skrives på nytt: fjerner også eventuelle gamle, foreldreløse koblinger.
-    [`/sakTiltakSpor/${sakId}/${tiltakId}`]: sporIds.length ? Object.fromEntries(sporIds.map((id) => [id, true])) : null,
-    ...sakEventWrites(sakId, eventsFor(deps, actor, hendelser)),
-  };
-
-  try {
-    await atomicUpdate(deps, updates);
-  } catch (error) {
-    deps.log.error('sak-core: kobling feilet etter medlemskap', { sakId, tiltakId, error: String(error?.message || error) });
-    let rullet = !claimed;
-    if (claimed) {
-      try {
-        await deps.db.ref(`/tiltak/${tiltakId}`).transaction((cur) => {
-          if (cur === null || cur === undefined) return null;
-          if (!isObject(cur) || clean(cur.sakId) !== sakId) return undefined;
-          const { sakId: _fjernet, ...rest } = cur;
-          return rest;
-        });
-        rullet = true;
-      } catch (rollbackError) {
-        deps.log.error('sak-core: tilbakerulling feilet', { sakId, tiltakId, error: String(rollbackError?.message || rollbackError) });
-      }
+    const tiltak = (await deps.db.ref(`/tiltak/${tiltakId}`).get()).val();
+    if (!isObject(tiltak)) fail('not-found', 'Tiltaket finnes ikke.');
+    if (tiltak.livssyklus === 'Papirkurv' || tiltak.papirkurv === true) fail('failed-precondition', 'Tiltak i papirkurven kan ikke kobles til en sak.');
+    const eksisterende = clean(tiltak.sakId);
+    if (eksisterende && eksisterende !== sakId) {
+      const annen = (await deps.db.ref(`/saker/${eksisterende}`).get()).val();
+      fail('failed-precondition', `Tiltaket tilhører allerede ${isObject(annen) && annen.kode ? annen.kode : 'en annen sak'}. Fjern det derfra først.`);
     }
-    fail('internal', rullet
-      ? 'Koblingen kunne ikke fullføres og ble rullet tilbake. Prøv igjen.'
-      : 'Koblingen ble bare delvis lagret. Prøv samme operasjon på nytt; den er trygg å gjenta.');
-  }
-  return { sakId, tiltakId, endret: true, tilknyttet: claimed, sporIds };
+
+    // Fase 1: medlemskap. Callbacken kan kjøres flere ganger (kald cache, samtidige skrivinger) og må være ren
+    // bortsett fra `claimed`, som nullstilles i HVER kjøring: bare den siste (committede) kjøringen teller.
+    let claimed = false;
+    const tx = await deps.db.ref(`/tiltak/${tiltakId}`).transaction((cur) => {
+      claimed = false;
+      if (cur === null || cur === undefined) return null; // kald cache: serveren prøver på nytt med ekte verdi
+      if (!isObject(cur)) return undefined;
+      const have = clean(cur.sakId);
+      if (have && have !== sakId) return undefined;
+      claimed = !have;
+      return have ? cur : { ...cur, sakId };
+    });
+    if (!tx.snapshot.exists()) fail('not-found', 'Tiltaket finnes ikke.');
+    if (!tx.committed) fail('aborted', 'Tiltaket ble koblet til en annen sak samtidig. Last inn på nytt.');
+
+    const forrige = (await deps.db.ref(`/sakTiltakSpor/${sakId}/${tiltakId}`).get()).val();
+    const forrigeIds = claimed ? [] : Object.keys(isObject(forrige) ? forrige : {}).filter((k) => forrige[k] === true);
+    const lagtTil = sporIds.filter((id) => !forrigeIds.includes(id));
+    const fjernet = forrigeIds.filter((id) => !sporIds.includes(id));
+    if (!claimed && !lagtTil.length && !fjernet.length) return { sakId, tiltakId, endret: false, sporIds };
+
+    const hendelser = [];
+    if (claimed) hendelser.push({ type: 'tiltak_koblet', entityId: tiltakId, felt: 'sakId', etter: sakId });
+    for (const id of lagtTil) hendelser.push({ type: 'spor_koblet', entityId: tiltakId, felt: 'sporId', etter: id });
+    for (const id of fjernet) hendelser.push({ type: 'spor_frakoblet', entityId: tiltakId, felt: 'sporId', foer: id });
+
+    const updates = {
+      // Hele settet skrives på nytt: fjerner også eventuelle gamle, foreldreløse koblinger.
+      [`/sakTiltakSpor/${sakId}/${tiltakId}`]: sporIds.length ? Object.fromEntries(sporIds.map((id) => [id, true])) : null,
+      ...sakEventWrites(sakId, eventsFor(deps, actor, hendelser)),
+    };
+
+    // Fase 2: spor-koblinger + hendelser (atomisk). Mister vi låsen, skriver vi ikke mer (en annen kan ha tatt over).
+    if (!(await lock.held())) fail('internal', DELVIS);
+    try {
+      await atomicUpdate(deps, updates);
+    } catch (error) {
+      deps.log.error('sak-core: kobling feilet etter medlemskap', { sakId, tiltakId, error: String(error?.message || error) });
+      if (!claimed) fail('internal', 'Koblingen kunne ikke lagres. Ingenting ble endret; prøv igjen.');
+      // Kompensasjon: fjern KUN vår egen kobling, og bare hvis vi fortsatt eier låsen.
+      const rullet = (await lock.held()) && await compensate(deps, tiltakId, (cur) => {
+        if (cur === null || cur === undefined) return null;
+        if (!isObject(cur)) return undefined;
+        const have = clean(cur.sakId);
+        if (!have) return cur;                 // allerede borte: ønsket tilstand
+        if (have !== sakId) return undefined;  // en annen sak har overtatt: aldri rør
+        const { sakId: _fjernet, ...rest } = cur;
+        return rest;
+      });
+      fail('internal', rullet ? 'Koblingen kunne ikke fullføres og ble rullet tilbake. Prøv igjen.' : DELVIS);
+    }
+    return { sakId, tiltakId, endret: true, tilknyttet: claimed, sporIds };
+  });
 }
 
-/** Fjerner tiltaket fra saken (tiltak.sakId fjernes). Idempotent. */
+/**
+ * Fjerner tiltaket fra saken. To faser (se over), serialisert per tiltak, kompensert og idempotent.
+ * Er tiltaket allerede frikoblet men har gjenværende spor-koblinger (avbrutt frakobling), ryddes de og
+ * den manglende tiltak_frakoblet skrives.
+ */
 async function removeTiltakSak(deps, uid, raw) {
   const input = objectInput(raw, ['sakId', 'tiltakId']);
   const actor = await requireAuthorized(deps, uid);
   const sakId = requireId(input.sakId, 'sakId');
   const tiltakId = requireId(input.tiltakId, 'tiltakId');
-  const sak = await loadSak(deps, sakId);
-  assertOpen(sak);
 
-  const tiltak = (await deps.db.ref(`/tiltak/${tiltakId}`).get()).val();
-  if (!isObject(tiltak)) fail('not-found', 'Tiltaket finnes ikke.');
-  const eksisterende = clean(tiltak.sakId);
-  if (eksisterende && eksisterende !== sakId) fail('failed-precondition', 'Tiltaket tilhører en annen sak.');
+  return withTiltakLock(deps, tiltakId, actor, async (lock) => {
+    const sak = await loadSak(deps, sakId);
+    assertOpen(sak);
 
-  let released = false;
-  const tx = await deps.db.ref(`/tiltak/${tiltakId}`).transaction((cur) => {
-    if (cur === null || cur === undefined) return null;
-    if (!isObject(cur)) return undefined;
-    const have = clean(cur.sakId);
-    if (have && have !== sakId) return undefined;
-    released = have === sakId;
-    if (!have) return cur;
-    const { sakId: _fjernet, ...rest } = cur;
-    return rest;
+    const tiltak = (await deps.db.ref(`/tiltak/${tiltakId}`).get()).val();
+    if (!isObject(tiltak)) fail('not-found', 'Tiltaket finnes ikke.');
+    const eksisterende = clean(tiltak.sakId);
+    if (eksisterende && eksisterende !== sakId) fail('failed-precondition', 'Tiltaket tilhører en annen sak.');
+
+    // Fase 1: frigjør medlemskapet. `released` nullstilles i hver kjøring (bare siste kjøring teller).
+    let released = false;
+    const tx = await deps.db.ref(`/tiltak/${tiltakId}`).transaction((cur) => {
+      released = false;
+      if (cur === null || cur === undefined) return null;
+      if (!isObject(cur)) return undefined;
+      const have = clean(cur.sakId);
+      if (have && have !== sakId) return undefined;
+      if (!have) return cur;
+      released = true;
+      const { sakId: _fjernet, ...rest } = cur;
+      return rest;
+    });
+    if (!tx.snapshot.exists()) fail('not-found', 'Tiltaket finnes ikke.');
+    if (!tx.committed) fail('aborted', 'Tiltaket ble koblet til en annen sak samtidig. Last inn på nytt.');
+
+    const forrige = (await deps.db.ref(`/sakTiltakSpor/${sakId}/${tiltakId}`).get()).val();
+    const forrigeIds = Object.keys(isObject(forrige) ? forrige : {}).filter((k) => forrige[k] === true);
+    const opprydding = !released && forrigeIds.length > 0; // avbrutt frakobling: medlemskapet er allerede borte
+    if (!released && !opprydding) return { sakId, tiltakId, endret: false };
+
+    const hendelser = [{ type: 'tiltak_frakoblet', entityId: tiltakId, felt: 'sakId', foer: sakId }];
+    for (const id of forrigeIds) hendelser.push({ type: 'spor_frakoblet', entityId: tiltakId, felt: 'sporId', foer: id });
+    const updates = {
+      [`/sakTiltakSpor/${sakId}/${tiltakId}`]: null,
+      ...sakEventWrites(sakId, eventsFor(deps, actor, hendelser)),
+    };
+
+    // Fase 2. Mister vi låsen, skriver vi ikke mer.
+    if (!(await lock.held())) fail('internal', 'Frakoblingen ble bare delvis lagret. Prøv samme operasjon på nytt; den er trygg å gjenta.');
+    try {
+      await atomicUpdate(deps, updates);
+    } catch (error) {
+      deps.log.error('sak-core: frakobling feilet etter medlemskap', { sakId, tiltakId, error: String(error?.message || error) });
+      if (!released) fail('internal', 'Opprydding etter en avbrutt frakobling feilet. Prøv samme operasjon på nytt.');
+      // Skrivingen var atomisk og feilet helt: spor-koblinger og historikk står som før. Gjenopprett medlemskapet,
+      // da er hele tilstanden som før operasjonen (bare hvis vi fortsatt eier låsen og ingen har tatt tiltaket).
+      const gjenopprettet = (await lock.held()) && await compensate(deps, tiltakId, (cur) => {
+        if (cur === null || cur === undefined) return null;
+        if (!isObject(cur)) return undefined;
+        const have = clean(cur.sakId);
+        if (have === sakId) return cur;       // allerede gjenopprettet
+        if (have) return undefined;           // en annen sak har overtatt: aldri rør
+        return { ...cur, sakId };
+      });
+      fail('internal', gjenopprettet
+        ? 'Frakoblingen kunne ikke fullføres og ble rullet tilbake. Prøv igjen.'
+        : 'Frakoblingen ble bare delvis lagret. Prøv samme operasjon på nytt; den er trygg å gjenta.');
+    }
+    return { sakId, tiltakId, endret: true };
   });
-  if (!tx.snapshot.exists()) fail('not-found', 'Tiltaket finnes ikke.');
-  if (!tx.committed) fail('aborted', 'Tiltaket ble koblet til en annen sak samtidig. Last inn på nytt.');
-
-  const forrige = (await deps.db.ref(`/sakTiltakSpor/${sakId}/${tiltakId}`).get()).val();
-  const forrigeIds = Object.keys(isObject(forrige) ? forrige : {}).filter((k) => forrige[k] === true);
-  if (!released && !forrigeIds.length) return { sakId, tiltakId, endret: false };
-
-  const hendelser = [];
-  if (released) hendelser.push({ type: 'tiltak_frakoblet', entityId: tiltakId, felt: 'sakId', foer: sakId });
-  for (const id of forrigeIds) hendelser.push({ type: 'spor_frakoblet', entityId: tiltakId, felt: 'sporId', foer: id });
-
-  const updates = {
-    [`/sakTiltakSpor/${sakId}/${tiltakId}`]: null,
-    ...sakEventWrites(sakId, eventsFor(deps, actor, hendelser)),
-  };
-  try {
-    await atomicUpdate(deps, updates);
-  } catch (error) {
-    // Tiltaket er frikoblet (medlemskap er sannheten). Gjenværende spor-koblinger er foreldreløse og
-    // ignoreres; de ryddes ved neste kobling. Hendelsen om frakobling finnes likevel i tiltakEvents.
-    deps.log.error('sak-core: frakobling feilet etter medlemskap', { sakId, tiltakId, error: String(error?.message || error) });
-    fail('internal', 'Tiltaket er fjernet fra saken, men historikken ble ikke fullt oppdatert. Prøv samme operasjon på nytt.');
-  }
-  return { sakId, tiltakId, endret: true };
 }
 
 /* ------------------------------------------------------------------ årsaker */
