@@ -1,6 +1,6 @@
 'use strict';
 
-// Verifiserer at callable-bindingen laster, at alle 8 sak-funksjonene registreres riktig, og at ingen
+// Verifiserer at callable-bindingen laster, at alle 9 sak-funksjonene registreres riktig, og at ingen
 // eksisterende funksjon forsvinner. Krever `npm install` i functions/ (hoppes over ellers). Ingen Firebase-kall.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -11,7 +11,7 @@ const fnDir = path.join(__dirname, '..', 'functions');
 const hasDeps = fs.existsSync(path.join(fnDir, 'node_modules', 'firebase-functions'));
 const skip = !hasDeps && 'functions/node_modules mangler';
 
-const NYE = ['createSakV1', 'getSakerV1', 'getSakV1', 'updateSakV1', 'setTiltakSakV1', 'removeTiltakSakV1', 'createArsakV1', 'updateArsakV1'];
+const NYE = ['createSakV1', 'getSakerV1', 'getSakV1', 'updateSakV1', 'setTiltakSakV1', 'removeTiltakSakV1', 'createArsakV1', 'updateArsakV1', 'createSporV1'];
 const FRA_1A = ['logTiltakEventsV1', 'logTaskCommentEventV1'];
 const EKSISTERENDE = [
   'notifyNewTaskV1C', 'notifyTaskChangesV1C', 'notifyTaskCommentV1', 'notifyDeadlinesV1C',
@@ -20,7 +20,7 @@ const EKSISTERENDE = [
   'notifyLorPlanChangeV1', 'notifyLorWeekStartV1', 'notifyLorFridayReminderV1',
 ];
 
-test('alle 8 sak-funksjoner er callables i europe-west1 med lav maxInstances', { skip }, () => {
+test('alle 9 sak-funksjoner er callables i europe-west1 med lav maxInstances', { skip }, () => {
   const entry = require(path.join(fnDir, 'entry.js'));
   for (const name of NYE) {
     const ep = entry[name] && entry[name].__endpoint;
@@ -32,7 +32,7 @@ test('alle 8 sak-funksjoner er callables i europe-west1 med lav maxInstances', {
   }
 });
 
-test('entry.js eksporterer nøyaktig: 13 eksisterende + 2 fra 1a + 8 nye = 23 funksjoner', { skip }, () => {
+test('entry.js eksporterer nøyaktig: 13 eksisterende + 2 fra 1a + 9 nye = 24 funksjoner', { skip }, () => {
   const entry = require(path.join(fnDir, 'entry.js'));
   for (const name of [...EKSISTERENDE, ...FRA_1A, ...NYE]) assert.equal(typeof entry[name], 'function', `${name} mangler`);
   assert.deepEqual(Object.keys(entry).sort(), [...EKSISTERENDE, ...FRA_1A, ...NYE].sort());
