@@ -985,11 +985,44 @@ body[data-contrast="high"][data-appearance="dark"] #mine .action-meta,
 body[data-contrast="high"][data-appearance="dark"] #mine .action-timeline-labels,
 body[data-contrast="high"][data-appearance="dark"] #mine .action-deadline{color:#c3ccd5!important}
 @media(max-width:420px){.settings-palette-grid{grid-template-columns:1fr}}
+
+/* Saker UX: dedikert mobilnavigasjon; overstyrer eldre tabs-overlays. */
+.opex-mobile-nav,.opex-mobile-more{display:none}
+@media(max-width:640px){
+  nav>.tabs{display:none!important}
+  nav{display:flex!important;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px!important}
+  nav .brand{flex:1;min-width:0}
+  nav .brand small{display:none}
+  nav .userbox{min-width:0;width:auto!important;max-width:58px;padding:3px!important;flex:none;position:relative;z-index:3}
+  nav .userbox>div:not(.avatar):not(.dropdown){display:none!important}
+  nav .appearance-toggle,nav .settings-toggle{flex:none;width:40px;height:40px}
+  .opex-mobile-nav{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;bottom:0;left:0;right:0;z-index:1700;background:#101b29;color:#d8e4f0;border-top:1px solid #344458;padding:5px 5px max(5px,env(safe-area-inset-bottom));box-shadow:0 -7px 24px #0002}
+  .opex-mobile-nav button{border:0;background:transparent;color:inherit;font:inherit;min-height:49px;display:flex;gap:3px;align-items:center;justify-content:center;flex-direction:column;font-size:11px;border-radius:9px;padding:3px 0;cursor:pointer}
+  .opex-mobile-nav button span{font-size:19px;line-height:22px}
+  .opex-mobile-nav button.active,.opex-mobile-nav button[aria-current=page]{background:#245078;color:#fff}
+  .opex-mobile-more{display:none;position:fixed;bottom:calc(64px + env(safe-area-inset-bottom));right:8px;left:8px;z-index:1701;border-radius:14px;background:#172639;border:1px solid #3b4b60;box-shadow:0 0 0 100vmax #0008;padding:10px;gap:5px}
+  .opex-mobile-more.open{display:grid}
+  .opex-mobile-more button{background:transparent;color:#f1f5f9;padding:13px;text-align:left;border:0;border-radius:8px;min-height:44px;font:inherit}
+  .opex-mobile-more button:focus-visible,.opex-mobile-nav button:focus-visible{outline:3px solid #8db5ff;outline-offset:1px}
+  main{padding-bottom:calc(82px + env(safe-area-inset-bottom))!important}
+}
 </style>
 </head>
 <body>
 <div class="topstrip"><div>Nortura Sarpsborg · OpEx Hub Live <span class="live">LIVE</span></div><div id="versjon">v2.13.1-contrast-palettes</div></div>
 <nav><div class="brand"><img src="./icons/nortura-logo.png" alt="Nortura"><div>OpEx Hub<small>Operations Excellence · Nortura Sarpsborg</small></div></div><div class="tabs"><button class="tab active" onclick="show('dashboard')">📊 Dashboard</button><button class="tab" onclick="show('mine')">👤 Mine tiltak</button><button class="tab" onclick="show('alle')">📋 Alle tiltak</button><button class="tab" onclick="show('saker')" id="sakerTab"><span class="sak-tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/></svg></span>Saker</button><button class="tab" onclick="show('arkiv')" id="archiveTab" style="display:none">📚 Lagrede tiltak</button><button class="tab" onclick="openModal()">+ Nytt tiltak</button><button class="tab" onclick="show('admin')" id="adminTab">⚙ Admin</button></div><button type="button" class="appearance-toggle" id="appearanceToggle" onclick="toggleAppearance(event)" aria-label="Bytt mellom lyst og mørkt tema" title="Lyst / mørkt tema"><span id="appearanceIcon">☾</span></button><button type="button" class="settings-toggle" id="settingsToggle" onclick="openSettings(event)" aria-label="Åpne personlige innstillinger" title="Personlige innstillinger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1 14h6"/><path d="M9 8h6"/><path d="M17 16h6"/></svg></button><div class="userbox" onclick="toggleDrop()"><div class="avatar" id="avatar">?</div><div><b id="navUser">Velg bruker</b><div class="small muted" style="color:#d7e1d3" id="userRole">ikke valgt</div></div><div class="dropdown" id="drop"><button class="dropitem" onclick="event.stopPropagation();resetUser()">👤 Bytt bruker</button><button class="dropitem" onclick="event.stopPropagation();loadData(true)">🔄 Oppdater data</button><button class="dropitem" onclick="event.stopPropagation();exportExcel()">📊 Eksporter Excel</button><button class="dropitem" onclick="event.stopPropagation();exportBackup()">💾 Eksporter JSON</button><button class="dropitem" id="adminDrop" onclick="event.stopPropagation();show('admin');toggleDrop(false)">⚙ Admin</button></div></div></nav>
+<div class="opex-mobile-more" id="opexMobileMore" aria-label="Flere sider">
+<button type="button" onclick="mobileGo('arkiv')">📚 Lagrede tiltak</button>
+<button type="button" onclick="mobileNewTask()">＋ Nytt tiltak</button>
+<button type="button" id="mobileAdminAction" onclick="mobileGo('admin')">⚙ Admin</button>
+</div>
+<div class="opex-mobile-nav" aria-label="Hovednavigasjon på mobil">
+<button type="button" data-mobile-page="dashboard" onclick="mobileGo('dashboard')"><span>▦</span>Dashboard</button>
+<button type="button" data-mobile-page="mine" onclick="mobileGo('mine')"><span>♙</span>Mine</button>
+<button type="button" data-mobile-page="alle" onclick="mobileGo('alle')"><span>▤</span>Alle</button>
+<button type="button" data-mobile-page="saker" onclick="mobileGo('saker')"><span>◇</span>Saker</button>
+<button type="button" data-mobile-page="mer" onclick="toggleMobileMore()"><span>☰</span>Mer</button>
+</div>
 <div class="settings-backdrop" id="settingsBackdrop" onclick="closeSettings()"></div>
 <aside class="settings-drawer" id="settingsDrawer" aria-hidden="true">
   <div class="settings-head">
@@ -1183,7 +1216,11 @@ function applyIdentity(user){let profile=profileFor(user);activeUser=profile.nam
 async function handleAuthState(user){stopData();authUser=user||null;if(!user){activeUser='';tasks=[];document.getElementById('login').style.display='flex';return}try{let allowed=await db.ref('authorizedUsers/'+user.uid).once('value');if(allowed.val()!==true){showAuthError('Kontoen er ikke godkjent for OpEx. Kontakt administrator.');await auth.signOut();return}applyIdentity(user);await loadUserPreferences(user);loadData()}catch(error){showAuthError('Tilgangen kunne ikke kontrolleres. Prøv igjen.');await auth.signOut()}}
 function refreshAuthLabels(){let dropdown=document.getElementById('drop'),firstDrop=dropdown?.querySelector('.dropitem');if(firstDrop)firstDrop.innerHTML='↪ Logg ut';if(dropdown&&!document.getElementById('installAppButton')){let install=document.createElement('button');install.id='installAppButton';install.className='dropitem';install.innerHTML='⬇ Installer OpEx-app';install.onclick=event=>{event.stopPropagation();installApp()};let admin=[...dropdown.querySelectorAll('.dropitem')].find(button=>button.textContent.includes('Admin'));dropdown.insertBefore(install,admin||null)}let heading=[...document.querySelectorAll('#admin .card h3')].find(h=>h.textContent.includes('Nullstill lokal bruker'));if(heading){heading.textContent='🔒 Logg ut';let card=heading.closest('.card');let description=card?.querySelector('p');let button=card?.querySelector('button');if(description)description.textContent='Avslutter den sikre økten på denne enheten.';if(button)button.textContent='Logg ut'}}function boot(){prepareLogin();refreshAuthLabels();fillSelects();auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>auth.onAuthStateChanged(handleAuthState)).catch(error=>showAuthError(authMessage(error.code)))}
 function signOutUser(){toggleDrop(false);auth.signOut()}function resetUser(){signOutUser()}function toggleDrop(force){let d=document.getElementById('drop');d.classList.toggle('open', force===undefined?!d.classList.contains('open'):force)}
-function show(id){if(id==='admin'&&!isAdmin()){toast('Kun administrator har tilgang til denne siden',true);id='dashboard'}current=id;document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));[...document.querySelectorAll('.tab')].find(b=>b.textContent.toLowerCase().includes(id==='alle'?'alle':id==='mine'?'mine':id==='admin'?'admin':id==='arkiv'?'lagrede':id==='saker'?'saker':'dashboard'))?.classList.add('active');renderAllViews();toggleDrop(false)}
+function toggleMobileMore(force){let el=document.getElementById('opexMobileMore');if(!el)return;let open=force===undefined?!el.classList.contains('open'):!!force;el.classList.toggle('open',open);document.querySelector('[data-mobile-page="mer"]')?.setAttribute('aria-expanded',String(open))}
+function mobileGo(id){toggleMobileMore(false);show(id)}
+function mobileNewTask(){toggleMobileMore(false);openModal()}
+function syncMobileNavigation(id){document.querySelectorAll('[data-mobile-page]').forEach(b=>{let active=b.dataset.mobilePage===id||(b.dataset.mobilePage==='mer'&&['arkiv','admin'].includes(id));b.classList.toggle('active',active);if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});let admin=document.getElementById('mobileAdminAction');if(admin)admin.hidden=!isAdmin()}
+function show(id){if(id==='admin'&&!isAdmin()){toast('Kun administrator har tilgang til denne siden',true);id='dashboard'}current=id;document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));[...document.querySelectorAll('.tab')].find(b=>b.textContent.toLowerCase().includes(id==='alle'?'alle':id==='mine'?'mine':id==='admin'?'admin':id==='arkiv'?'lagrede':id==='saker'?'saker':'dashboard'))?.classList.add('active');renderAllViews();syncMobileNavigation(id);toggleDrop(false)}
 function fillSelects(){['m_eier','fOwner','dashOwner'].forEach(id=>{let s=document.getElementById(id);if(!s)return;USERS.forEach(u=>{let o=document.createElement('option');o.textContent=u;o.value=u;s.appendChild(o)})})}
 function applySnapshot(snap,manual=false){let data=snap.val()||{};tasks=Object.entries(data).map(([fbKey,v])=>({...v,fbKey}));tasks.sort((a,b)=>(a.frist||'9999').localeCompare(b.frist||'9999'));renderAllViews();if(/^#saker(?:\/|$)/.test(location.hash)&&current!=='saker')show('saker');if(manual)toast(tasks.length+' tiltak lastet')}function stopData(){if(dataListening)ref.off();dataListening=false}function loadData(manual=false){if(!auth.currentUser)return;if(manual)return ref.once('value').then(snap=>applySnapshot(snap,true)).catch(error=>toast('Kunne ikke laste data: '+error.message,true));if(dataListening)return;dataListening=true;ref.on('value',snap=>applySnapshot(snap),error=>toast('Kunne ikke laste data: '+error.message,true))}
 function isTerminal(t){return ['Fullført','Avsluttet','Stanset'].includes(normStatus(t.status))}
