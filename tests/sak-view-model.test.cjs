@@ -221,7 +221,9 @@ test('aktivitet slår sammen sak- og tiltakshendelser, nyeste først, med lesbar
   assert.deepEqual(m.aktivitet.map((a) => a.createdAt), m.aktivitet.map((a) => a.createdAt).slice().sort().reverse());
   assert.ok(tekster.includes('Årsaksstatus «Manglende fast rutine for restlager»: hypotese → støttet'));
   assert.ok(tekster.includes('Status endret: Åpen → Under oppfølging'));
-  assert.ok(tekster.includes('«Fast lagergjennomgang hos Constellation» ble koblet til Spor A'));
+  assert.ok(tekster.includes('«Fast lagergjennomgang hos Constellation» ble koblet til saken og Spor A'));
+  const samlet = m.aktivitet.find((a) => a.tekst.includes('ble koblet til saken og Spor A'));
+  assert.equal(samlet.detaljer.length, 2, 'originalhendelser skal beholdes');
   assert.ok(tekster.includes('Saken ble opprettet'));
   assert.ok(tekster.includes('«Datokontroll Frysa»: status Innmeldt → Aktiv'));
   assert.equal(tekster.some((x) => x.includes('annet')), false, 'hendelser for tiltak utenfor saken vises ikke');
