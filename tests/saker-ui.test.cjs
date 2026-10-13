@@ -315,10 +315,12 @@ test('Saker: Ribbefett-oppsett gir riktig ledelsesbilde, handlingsliste, spor og
 
   await t.test('aktivitet: sak- og tiltakshendelser, sortert nyest først', async () => {
     const main = page.locator('#saker');
-    await main.getByRole('button', { name: /Vis flere/ }).click();
+    const mer = main.getByRole('button', { name: /Vis flere/ });
+    if (await mer.count()) await mer.click();
     await main.getByText('Saken ble opprettet').waitFor();
     const n = await main.locator('.sak-event').count();
-    assert.ok(n >= 10, 'forventet mange hendelser, fant ' + n);
+    assert.ok(n >= 5, 'forventet flere hendelser også etter gruppering, fant ' + n);
+    assert.ok(await main.locator('.sak-event details').count() >= 1, 'grupperte hendelser skal kunne utvides');
     assert.equal(await main.getByText(/Historikken er avkortet/).count(), 0);
     await shot(page, '14-ribbefett-aktivitet');
   });
