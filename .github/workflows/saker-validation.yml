@@ -1,0 +1,32 @@
+name: Saker MVP-0 validation (no deploy)
+on:
+  push:
+    branches: [feature/saker-mvp0]
+    paths:
+      - "saker/**"
+      - "functions/**"
+      - "tests/**"
+      - "index.html"
+      - "sw.js"
+      - ".github/workflows/saker-validation.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Firebase dependencies for load checks
+        run: npm install --prefix functions --no-audit --no-fund
+      - name: Install Playwright (test only)
+        run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+      - name: Install Chromium for browser tests
+        run: npx playwright install --with-deps chromium
+      - name: Full Saker suite (unit, concurrency, UI and visual)
+        run: node --test tests/*.test.cjs
