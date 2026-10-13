@@ -68,7 +68,7 @@ const TEKST_VELGERE = [
 async function open(opts) {
   const app = await openApp({ name: 'Tony Danielsen', ...opts });
   const seed = await seedRibbefett(app);
-  await app.page.locator('#sakerTab').click();
+  await app.page.locator(opts.viewport && opts.viewport.width <= 640 ? '[data-mobile-page="saker"]' : '#sakerTab').click();
   await app.reloadSaker();
   await app.page.locator('.sak-card', { hasText: 'Ribbefett 2025' }).waitFor();
   await app.page.locator('.sak-foot-item', { hasText: /Aktivitet (i dag|i går|\d+ dager)/ }).first().waitFor();
@@ -125,12 +125,12 @@ test('responsivt: ingen horisontal scroll, fanen er nåbar, tiltak/kort stables 
       const overflow = () => page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
       let o = await overflow();
       assert.ok(o.sw <= o.cw + 1, `oversikt ${vp.width}px: horisontal overflow ${o.sw} > ${o.cw}`);
-      const tab = page.locator('#sakerTab');
+      const tab = page.locator(vp.width <= 640 ? '[data-mobile-page="saker"]' : '#sakerTab');
       const box = await tab.boundingBox();
-      assert.ok(box && box.x >= 0 && box.x + box.width <= vp.width + 1 && box.y >= 0 && box.y + box.height <= vp.height + 1, `Saker-fanen er utenfor skjermen ved ${vp.width}px: ${JSON.stringify(box)}`);
+      assert.ok(box && box.x >= 0 && box.x + box.width <= vp.width + 1 && box.y >= 0 && box.y + box.height <= vp.height + 1, `Saker-navigasjonen er utenfor skjermen ved ${vp.width}px: ${JSON.stringify(box)}`);
       if (vp.width <= 640) {
-        const tabs = await page.locator('.tabs .tab:visible').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
-        assert.equal(new Set(tabs).size, 1, `fanene brytes over flere rader ved ${vp.width}px: ${tabs}`);
+        assert.equal(await page.locator('nav > .tabs:visible').count(), 0, 'gammel fanestripe skal være skjult på mobil');
+        assert.equal(await page.locator('.opex-mobile-nav button:visible').count(), 5, 'fem synlige mobilvalg');
         const w = await page.locator('.sak-card').first().evaluate((e) => e.getBoundingClientRect().width);
         assert.ok(w >= vp.width - 40, 'kortet fyller bredden på mobil');
       }
