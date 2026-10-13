@@ -55,6 +55,20 @@ async function rejectsWith(promise, code, message) {
 const sakEvents = (db, sakId) => Object.entries(db.at(`/sakEvents/${sakId}`) || {}).sort(([a], [b]) => (a < b ? -1 : 1)).map(([, v]) => v);
 const typer = (db, sakId) => sakEvents(db, sakId).map((e) => e.type);
 
+test('getSak leser tiltaksmedlemskap uten indeksert RTDB-query og filtrerer på sakId', async () => {
+  const e = env({ tiltak: {
+    '-Oone': tiltak({ sakId: '-Os1' }),
+    '-Otwo': tiltak({ sakId: '-Os2' }),
+    '-Ofree': tiltak(),
+  }, saker: {
+    '-Os1': { kode: 'SAK-0001', tittel: 'Testsak', eierUid: A, status: 'Åpen', opprettetAt: new Date(T0).toISOString() },
+  } });
+  const r = await core.getSak(e.deps, A, { sakId: '-Os1' });
+  assert.deepEqual(r.tiltakIds, ['-Oone']);
+  assert.ok(e.db.reads.includes('/tiltak'), 'leser uten .orderByChild (produksjonsregler mangler indexOn)');
+  assert.equal(r.tiltakSpor['-Oone'].length, 0);
+});
+
 /* ============================================================== tilgang */
 
 const OPERASJONER = [

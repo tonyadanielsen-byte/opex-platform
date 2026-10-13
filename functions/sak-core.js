@@ -298,12 +298,15 @@ async function getSak(deps, uid, raw) {
     deps.db.ref(`/sakSpor/${sakId}`).get(),
     deps.db.ref(`/sakArsaker/${sakId}`).get(),
     deps.db.ref(`/sakTiltakSpor/${sakId}`).get(),
-    // Uten .indexOn leser admin-SDK-et alle tiltak og filtrerer; greit i pilot (hundrevis av tiltak).
-    deps.db.ref('/tiltak').orderByChild('sakId').equalTo(sakId).get(),
+    // Les alle tiltak og filtrer på server i piloten. RTDB avviser orderByChild('sakId') uten .indexOn.
+    // Dette unngår en utestet endring av produksjonsregler; indeksert spørring innføres når regler er versjonsstyrt.
+    deps.db.ref('/tiltak').get(),
     deps.db.ref(`/sakEvents/${sakId}`).orderByKey().limitToLast(LIMITS.sakEvents).get(),
   ]);
 
-  const tiltakIds = Object.keys(medlemmer.val() || {}).sort();
+  const tiltakIds = Object.entries(medlemmer.val() || {})
+    .filter(([, tiltak]) => isObject(tiltak) && tiltak.sakId === sakId)
+    .map(([id]) => id).sort();
   const medlemSet = new Set(tiltakIds);
 
   const spor = Object.entries(sporVal.val() || {})
