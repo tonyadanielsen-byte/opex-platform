@@ -1,7 +1,7 @@
 name: Saker MVP-0 validation (no deploy)
 on:
   push:
-    branches: [feature/saker-mvp0]
+    branches: [feature/saker-mvp0, fix/saker-get-sak-index]
     paths:
       - "saker/**"
       - "functions/**"
