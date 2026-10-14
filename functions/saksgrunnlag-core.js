@@ -15,9 +15,9 @@ async function buildSaksgrunnlag(db, sakId) {
   const read = async path => (await db.ref(path).get()).val() || {};
   const sak = await read('/saker/' + sakId);
   if (!sak || !sak.sakId || sak.deletedAt || sak.slettetAt || sak.slettet === true) throw new Error('Saken finnes ikke');
-  const [tiltak, spor, arsaker, hendelser, journal, legacyComments, newComments, tiltakEvents] = await Promise.all([
+  const [tiltak, spor, arsaker, hendelser, journal] = await Promise.all([
     read('/tiltak'), read('/sakSpor/'+sakId), read('/sakArsaker/'+sakId), read('/sakEvents/'+sakId),
-    read('/sakJournal/'+sakId), Promise.resolve({}), Promise.resolve({}), Promise.resolve({}),
+    read('/sakJournal/'+sakId),
   ]);
   const sources = [];
   function add(id, type, data) { sources.push({ id, type, data }); }
