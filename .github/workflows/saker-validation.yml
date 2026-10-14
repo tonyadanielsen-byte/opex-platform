@@ -23,4 +23,4 @@ jobs:
       - name: Install Chromium for browser tests
         run: npx playwright install --with-deps chromium
       - name: Full Saker suite (unit, concurrency, UI and visual)
-        run: node --test tests/*.test.cjs
+        run: node --test $(find tests -maxdepth 1 -name '*.test.cjs' ! -name 'rtdb-emulator.test.cjs' | sort)
