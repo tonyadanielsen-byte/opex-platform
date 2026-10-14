@@ -264,3 +264,13 @@ Fire forbedringer er implementert på feature-branchen, **ikke deployet**:
 - `createSporV1` gjør det mulig å legge til spor A–H senere, med autorisering, egen lås for kodeallokering, og samlet multi-path update for spor + sakEvent. Opprettingsdialogen er koblet til callable.
 
 **Teststatus:** oppdaterte JavaScript-filer og inline-script er syntakskontrollert. Fire isolerte kjernetester av `createSpor` med simulert RTDB er gjennomført (4/4). Full Node-/Chromium-regresjon, manuell mobilkontroll og integrasjon mot ekte Firebase er **ikke utført i denne gjennomgangen**. Ingen produksjonsmerge skal gjøres før disse er grønne. RTDB-regler og 1a-produksjonsverifisering er fortsatt åpne kontrollpunkter.
+
+
+## Slette en testsak (2026-10-14)
+
+`deleteSakV1` tar en tom sak ut av oversikten ved å sette `slettetAt` og `slettetAv` server-side. Dette er **logisk sletting**: innhold, spor, årsaker og hendelseshistorikk blir liggende for revisjon, og saksnummer gjenbrukes ikke. Vanlige lesekall skjuler slettede saker.
+
+- Krever godkjent bruker **og** `/sakAdmins/{uid} === true` fra Firebase Admin SDK. Klientens `isAdmin` er bare for knappens synlighet. Dette separate, serverstyrte tillatelsespunktet må opprettes i Firebase Console før funksjonen kan brukes av administrator; ikke legg admin-UID hardkodet i kode. Root RTDB-regler deny-by-default gjelder fortsatt for noden.
+- Krever nøyaktig bekreftelse av sakskode og ingen tiltak med `sakId` lik saken, uansett tiltaksstatus.
+- Ingen `tiltak`-poster endres eller slettes. `sakEvents` beholdes.
+- Fullt atomisk over medlemskap og saksstatus er ikke garantert hvis noen kobler tiltak samtidig med sletting. I piloten bør administrativ sletting skje når andre ikke kobler tiltak; mer omfattende serialisering før bred utrulling.
