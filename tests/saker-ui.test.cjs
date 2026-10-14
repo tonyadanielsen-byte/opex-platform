@@ -184,7 +184,7 @@ test('Saker: navigasjon, opprettelse, kobling, årsaker, frakobling (én økt)',
     await dialog.locator('label.sak-check', { hasText: 'Spor B' }).locator('input').check();
     await dialog.getByRole('button', { name: 'Lagre spor' }).click();
     await dialog.waitFor({ state: 'detached' });
-    assert.match(await main.locator('.sak-tiltak', { hasText: 'Batchstyring' }).first().textContent(), /også i/);
+    assert.equal(await main.locator('.sak-tiltak', { hasText: 'Batchstyring' }).locator('.sak-spor-pill').count(), 2);
     const rad2 = main.locator('.sak-tiltak', { hasText: 'Batchstyring ved bestilling' }).first();
     await rad2.getByRole('button', { name: /Frakoble Batchstyring/ }).click();
     await dialog.getByText('Selve tiltaket slettes ikke').waitFor();
