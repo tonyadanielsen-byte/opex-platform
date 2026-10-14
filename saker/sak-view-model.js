@@ -135,6 +135,19 @@
       out.push({ id: 'forfalt:' + r.id, nivaa: 'kritisk', ikon: 'alert', tekst: '«' + kutt(r.tittel, 70) + '» er ' + (r.dagerTil === -1 ? '1 dag' : (-r.dagerTil) + ' dager') + ' over frist', detalj: r.eier ? 'Eier: ' + r.eier : '', handling: { type: 'apneTiltak', tiltakId: r.id, label: 'Åpne tiltak' } });
     });
 
+    // Kommende frister er reell oppfølging, selv om ingen tiltak er forfalt ennå.
+    var snart = m.alleTiltak.filter(function (r) {
+      return r.klasse === 'gjenstar' && Number.isInteger(r.dagerTil) && r.dagerTil >= 0 && r.dagerTil <= 7;
+    });
+    if (snart.length) {
+      var n = snart.length;
+      var narmest = snart.slice().sort(function (a,b) { return a.dagerTil - b.dagerTil; })[0];
+      out.push({ id: 'frist-snart', nivaa: 'advarsel', ikon: 'calendar',
+        tekst: n + (n === 1 ? ' tiltak har' : ' tiltak har') + ' frist innen 7 dager',
+        detalj: 'Nærmeste frist: ' + (narmest.dagerTil === 0 ? 'i dag' : 'om ' + narmest.dagerTil + (narmest.dagerTil === 1 ? ' dag' : ' dager')),
+        handling: { type: 'apneTiltak', tiltakId: narmest.id, label: 'Åpne nærmeste tiltak' } });
+    }
+
     if (s.totalt === 0 && s.ekskludert === 0) {
       out.push({ id: 'ingen-tiltak', nivaa: 'advarsel', ikon: 'link', tekst: 'Ingen tiltak er koblet til saken', detalj: 'Koble eksisterende tiltak for å få fremdrift og frister.', handling: { type: 'kobleTiltak', label: 'Koble tiltak' } });
     }
@@ -261,6 +274,25 @@
       var dato = L.osloDato(ev.createdAt);
       return { id: ev.id, kilde: ev.kilde, eventType: ev.event.type, createdAt: ev.createdAt, dato: dato, dagerSiden: L.dagerMellom(dato, ctx.idag), ikon: b.ikon, tekst: b.tekst, aktor: b.aktor, actorUid: ev.event.actorUid || '', tiltakId: ev.tiltakId || (ev.event.entityId && members[ev.event.entityId] ? ev.event.entityId : null) };
     });
+    // Samle koblinger utført av samme leder innen ett minutt.
+    // Loggen beholdes uendret; gruppering er utelukkende visning.
+    var pakkede = [];
+    rader.forEach(function (rad) {
+      var previous = pakkede[pakkede.length - 1];
+      var kobling = rad.eventType === 'tiltak_koblet';
+      var like = kobling && previous && previous.eventType === 'tiltak_koblet' &&
+        rad.actorUid && rad.actorUid === previous.actorUid &&
+        Math.abs(Date.parse(rad.createdAt) - Date.parse(previous.createdAt)) <= 60000;
+      if (like) {
+        var enkel = previous.detaljer ? previous.detaljer.slice() : [previous];
+        enkel.push(rad);
+        pakkede[pakkede.length - 1] = Object.assign({}, previous, {
+          tekst: enkel.length + ' tiltak ble koblet til saken',
+          detaljer: enkel,
+        });
+      } else pakkede.push(rad);
+    });
+    rader = pakkede;
     // Skjul bare påfølgende spor-koblinger til samme tiltak/aktør innen 30 sekunder.
     // Originalene bevares som detaljer; serverens hendelseslogg endres ikke.
     var gruppert = [];
@@ -339,6 +371,17 @@
       sisteAktivitetTekst: summary.sisteAktivitet ? dagerSidenTekst(summary.sisteAktivitet.dagerSiden) : '',
       flagg: { ingenTiltak: summary.totalt === 0, ingenSpor: spor.length === 0, alleFerdig: summary.totalt > 0 && summary.gjenstar === 0 && summary.gjort > 0 },
     };
+    // Beregnet saksoppsummering, aldri lagret som menneskeskrevet tekst.
+    var oversikt = [];
+    if (!summary.totalt) oversikt.push('Ingen tiltak er koblet til saken.');
+    else {
+      oversikt.push(summary.totalt + ' tiltak registrert, ' + summary.gjort + ' fullført og ' + summary.gjenstar + ' gjenstår.');
+      if (summary.forfalt) oversikt.push(summary.forfalt + ' tiltak er forfalt.');
+      var frister = modell.alleTiltak.filter(function (r) { return r.klasse === 'gjenstar' && Number.isInteger(r.dagerTil) && r.dagerTil >= 0 && r.dagerTil <= 7; });
+      if (frister.length) oversikt.push(frister.length + ' tiltak har frist innen 7 dager.');
+      if (!summary.forfalt && !frister.length && summary.gjenstar) oversikt.push('Ingen registrerte frister er forfalt eller innen de neste 7 dagene.');
+    }
+    modell.saksOppsummering = { tekst: oversikt.join(' '), beregnetDato: idag };
     modell.kreverHandling = byggKreverHandling(modell);
     return modell;
   }
