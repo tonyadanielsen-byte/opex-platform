@@ -296,3 +296,12 @@ body[data-appearance="dark"] .sak-btn-primary { color: #fff; }
   .sak-btn { min-height: 44px; }
   .sak-btn-sm { min-height: 40px; }
 }
+
+/* Saker – tiltak først: den valgfrie analysen tar ikke plass i daglig oppfølging. */
+.sak-optional-analysis{border:1px solid var(--sak-border,rgba(130,145,160,.28));border-radius:12px;margin-top:18px;overflow:hidden}
+.sak-optional-analysis>summary{display:flex;align-items:center;gap:10px;cursor:pointer;padding:16px 18px;font-weight:650;list-style:none}
+.sak-optional-analysis>summary::-webkit-details-marker{display:none}
+.sak-optional-analysis>summary:after{content:"⌄";margin-left:auto}
+.sak-optional-analysis[open]>summary:after{content:"⌃"}
+.sak-optional-analysis>.sak-section{border:0;margin:0;box-shadow:none}
+.sak-tiltak-samlet{margin:0}
