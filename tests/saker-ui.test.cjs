@@ -122,7 +122,7 @@ test('Saker: navigasjon, opprettelse, kobling, årsaker, frakobling (én økt)',
 
   await t.test('tiltak vises under spor, med frist, status og eier; klikk åpner eksisterende tiltaksmodal', async () => {
     const main = page.locator('#saker');
-    const sporA = main.locator('.sak-group', { hasText: 'Spor A' }).first();
+    const sporA = main.locator('.sak-tiltak-samlet').first();
     await sporA.getByText('Fast lagergjennomgang hos Constellation').waitFor();
     assert.equal(await sporA.locator('.sak-tiltak').count(), 2);
     await main.getByRole('heading', { name: 'Ikke koblet til spor' }).count().then((n) => assert.equal(n, 0));
