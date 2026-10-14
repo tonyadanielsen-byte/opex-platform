@@ -1,0 +1,26 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "tiltak": {
+      ".read": "auth != null && root.child('authorizedUsers').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('authorizedUsers').child(auth.uid).val() === true"
+    },
+    "lor": {
+      ".read": "auth != null && root.child('authorizedUsers').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('authorizedUsers').child(auth.uid).val() === true"
+    },
+    "authorizedUsers": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": false
+      }
+    },
+    "pushTokens": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && root.child('authorizedUsers').child(auth.uid).val() === true"
+      }
+    }
+  }
+}
