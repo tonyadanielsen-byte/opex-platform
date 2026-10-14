@@ -254,8 +254,8 @@
     page.appendChild(section('ledelse', 'Saksoversikt', 'layers', ledelsesbilde(m)));
     page.appendChild(section('tiltak', 'Tiltak · ' + m.alleTiltak.length, 'list', tiltakSeksjon(m, H), { actions: !lukket && m.summary.totalt ? U.button('Koble tiltak', { icon: 'plus', small: true, variant: 'ghost', on: { click: H.kobleTiltak } }) : null }));
     page.appendChild(section('handling', 'Krever handling', 'alert', kreverHandling(m, H), m.kreverHandling.length && !lukket ? { actions: h('span', { class: 'sak-count' }, String(m.kreverHandling.length)) } : null));
-    page.appendChild(h('details', { class: 'sak-optional-analysis' }, [
-      h('summary', null, [U.icon('help', 18), 'Årsaker og spor', h('span', { class: 'sak-muted' }, ' · Valgfritt')]),
+    page.appendChild(h('details', { class: 'sak-optional-analysis', open: !!ctx.ui.visAnalyse }, [
+      h('summary', { on: { click: function () { ctx.ui.visAnalyse = !ctx.ui.visAnalyse; } } }, [U.icon('help', 18), 'Årsaker og spor', h('span', { class: 'sak-muted' }, ' · Valgfritt')]),
       section('arsaker', 'Årsaksbilde', 'help', arsaksbilde(m, H, ctx.ui), { note: 'Registrer årsaker og vurder grunnlag ved behov.' }),
     ]));
     page.appendChild(section('aktivitet', 'Aktivitet', 'activity', aktivitet(m, ctx.ui, H)));
