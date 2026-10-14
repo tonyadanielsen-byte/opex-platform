@@ -8,4 +8,5 @@ module.exports = {
   ...require('./lor-notifications'),
   ...require('./tiltak-events'),
   ...require('./sak-api'),
+  ...require('./saksgrunnlag-api'),
 };
