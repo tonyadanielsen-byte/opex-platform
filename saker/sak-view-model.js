@@ -139,10 +139,6 @@
       out.push({ id: 'ingen-tiltak', nivaa: 'advarsel', ikon: 'link', tekst: 'Ingen tiltak er koblet til saken', detalj: 'Koble eksisterende tiltak for å få fremdrift og frister.', handling: { type: 'kobleTiltak', label: 'Koble tiltak' } });
     }
 
-    if (m.ikkeKoblet.length && m.spor.length) {
-      out.push({ id: 'uten-spor', nivaa: 'advarsel', ikon: 'flag', tekst: flertall(m.ikkeKoblet.length, 'tiltak er', 'tiltak er') + ' ikke koblet til noe spor', detalj: 'Spor viser hvilket spørsmål tiltaket svarer på.', handling: { type: 'sporForTiltak', tiltakId: m.ikkeKoblet[0].id, label: 'Velg spor' } });
-    }
-
     var d = s.datakvalitet || {};
     if (d.ukjentStatus && d.ukjentStatus.antall) out.push({ id: 'dq-status', nivaa: 'advarsel', ikon: 'info', tekst: flertall(d.ukjentStatus.antall, 'tiltak har', 'tiltak har') + ' ukjent status', detalj: 'Telles som gjenstående til statusen rettes.', handling: { type: 'apneTiltak', tiltakId: d.ukjentStatus.tiltakIds[0], label: 'Åpne tiltak' } });
     if (d.ugyldigFrist && d.ugyldigFrist.antall) out.push({ id: 'dq-frist', nivaa: 'advarsel', ikon: 'info', tekst: flertall(d.ugyldigFrist.antall, 'tiltak har', 'tiltak har') + ' ugyldig frist', detalj: 'Telles ikke som forfalt før fristen rettes.', handling: { type: 'apneTiltak', tiltakId: d.ugyldigFrist.tiltakIds[0], label: 'Åpne tiltak' } });
@@ -152,13 +148,6 @@
     m.venterGodkjenning.forEach(function (r) {
       out.push({ id: 'godkjenning:' + r.id, nivaa: 'info', ikon: 'clock', tekst: '«' + kutt(r.tittel, 70) + '» venter på godkjenning', detalj: r.eier ? 'Eier: ' + r.eier : '', handling: { type: 'apneTiltak', tiltakId: r.id, label: 'Åpne tiltak' } });
     });
-
-    m.spor.forEach(function (sp) {
-      if (!sp.arsaker.length) out.push({ id: 'spor-uten-arsak:' + sp.sporId, nivaa: 'info', ikon: 'help', tekst: 'Spor ' + sp.kode + ' har ingen registrerte årsaker', detalj: sp.sporsmal, handling: { type: 'nyArsak', sporId: sp.sporId, label: 'Registrer årsak' } });
-    });
-
-    var hypoteser = m.spor.reduce(function (n, sp) { return n + sp.arsaker.filter(function (a) { return a.status === 'hypotese'; }).length; }, 0);
-    if (hypoteser) out.push({ id: 'hypoteser', nivaa: 'info', ikon: 'help', tekst: flertall(hypoteser, 'årsak venter', 'årsaker venter') + ' på vurdering', detalj: 'Status er «Hypotese». Vurder om de er støttet, bekreftet eller avkreftet.', handling: null });
 
     if (apen && s.totalt > 0 && s.gjenstar === 0 && s.gjort > 0) {
       out.push({ id: 'alle-ferdig', nivaa: 'info', ikon: 'check', tekst: 'Alle tiltak er fullført', detalj: 'Vurder å sette saken til «Løst». Status endres bare manuelt.', handling: { type: 'status', label: 'Endre status' } });

@@ -131,18 +131,17 @@ test('Krever handling: forfalt og uten spor, sortert kritisk → advarsel → in
   assert.deepEqual(k[0].handling, { type: 'apneTiltak', tiltakId: '-Or4', label: 'Åpne tiltak' });
   assert.match(k[0].tekst, /Datokontroll Frysa.*1 dag over frist/);
   const uten = k.find((x) => x.id === 'uten-spor');
-  assert.equal(uten.nivaa, 'advarsel');
-  assert.equal(uten.handling.tiltakId, '-Or7');
+  assert.equal(uten, undefined, 'spor er valgfritt');
   const nivaaer = k.map((x) => x.nivaa);
   const rang = { kritisk: 0, advarsel: 1, info: 2 };
   assert.deepEqual(nivaaer.map((n) => rang[n]), nivaaer.map((n) => rang[n]).sort((a, b) => a - b));
   assert.ok(k.find((x) => x.id === 'godkjenning:-Or6'), 'tiltak som venter på godkjenning er en oppfølging');
-  assert.ok(k.find((x) => x.id === 'spor-uten-arsak:' + SA), 'spor uten årsaker flagges');
+  assert.equal(k.find((x) => x.id === 'spor-uten-arsak:' + SA), undefined);
 });
 
 test('Krever handling: hypoteser som venter på vurdering telles, men en vurdert årsak gjør det ikke', () => {
   const mk = (status) => detail({ arsaker: [{ arsakId: '-Oa1', sporId: SA, tekst: 'X', status, grunnlag: 'g', vurdertAv: 'uid-a', vurdertAt: '2026-10-09T08:00:00.000Z', opprettetAv: 'uid-a', opprettetAt: '2026-10-09T08:00:00.000Z', fjernet: false }] });
-  assert.ok(bygg(mk('hypotese')).kreverHandling.find((x) => x.id === 'hypoteser'));
+  assert.equal(bygg(mk('hypotese')).kreverHandling.find((x) => x.id === 'hypoteser'), undefined);
   assert.equal(bygg(mk('bekreftet')).kreverHandling.find((x) => x.id === 'hypoteser'), undefined);
 });
 

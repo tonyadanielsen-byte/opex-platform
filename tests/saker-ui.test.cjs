@@ -89,9 +89,11 @@ test('Saker: navigasjon, opprettelse, kobling, årsaker, frakobling (én økt)',
     await main.locator('.sak-todo').getByText('Ingen tiltak er koblet til saken').waitFor();
     assert.equal(await main.getByText('Ingen årsaker registrert for dette sporet ennå.').count(), 2);
     await main.getByText('Saken ble opprettet').waitFor();
-    for (const h2 of ['Ledelsesbilde', 'Krever handling', 'Årsaksbilde', 'Tiltak', 'Aktivitet']) await main.getByRole('heading', { level: 2, name: h2 }).waitFor();
+    for (const h2 of ['Saksoversikt', 'Krever handling', 'Tiltak · 0', 'Aktivitet']) await main.getByRole('heading', { level: 2, name: h2 }).waitFor();
     const order = await main.locator('.sak-section h2').allTextContents();
-    assert.deepEqual(order.map((x) => x.trim()), ['Ledelsesbilde', 'Krever handling', 'Årsaksbilde', 'Tiltak', 'Aktivitet']);
+    assert.deepEqual(order.map((x) => x.trim()), ['Saksoversikt', 'Tiltak · 0', 'Krever handling', 'Årsaksbilde', 'Aktivitet']);
+    assert.equal(await main.locator('.sak-optional-analysis').getAttribute('open'), null);
+    await main.locator('.sak-optional-analysis > summary').click();
     await shot(page, '04-tom-sak');
   });
 
@@ -122,7 +124,7 @@ test('Saker: navigasjon, opprettelse, kobling, årsaker, frakobling (én økt)',
 
   await t.test('tiltak vises under spor, med frist, status og eier; klikk åpner eksisterende tiltaksmodal', async () => {
     const main = page.locator('#saker');
-    const sporA = main.locator('.sak-group', { hasText: 'Spor A' }).first();
+    const sporA = main.locator('.sak-tiltak-samlet').first();
     await sporA.getByText('Fast lagergjennomgang hos Constellation').waitFor();
     assert.equal(await sporA.locator('.sak-tiltak').count(), 2);
     await main.getByRole('heading', { name: 'Ikke koblet til spor' }).count().then((n) => assert.equal(n, 0));
@@ -182,7 +184,7 @@ test('Saker: navigasjon, opprettelse, kobling, årsaker, frakobling (én økt)',
     await dialog.locator('label.sak-check', { hasText: 'Spor B' }).locator('input').check();
     await dialog.getByRole('button', { name: 'Lagre spor' }).click();
     await dialog.waitFor({ state: 'detached' });
-    assert.match(await main.locator('.sak-tiltak', { hasText: 'Batchstyring' }).first().textContent(), /også i/);
+    assert.equal(await main.locator('.sak-tiltak', { hasText: 'Batchstyring' }).locator('.sak-spor-pill').count(), 2);
     const rad2 = main.locator('.sak-tiltak', { hasText: 'Batchstyring ved bestilling' }).first();
     await rad2.getByRole('button', { name: /Frakoble Batchstyring/ }).click();
     await dialog.getByText('Selve tiltaket slettes ikke').waitFor();
@@ -265,7 +267,7 @@ test('Saker: Ribbefett-oppsett gir riktig ledelsesbilde, handlingsliste, spor og
     assert.equal(await kpi('Forfalt'), '1');
     assert.equal(await kpi('Fullført'), '1');
     assert.equal(await kpi('Gjenstår'), '6');
-    await main.getByText('Tallene beregnes fra tiltakene').waitFor();
+    assert.equal(await main.locator('.sak-kpi').count(), 6);
     await shot(page, '11-ribbefett-detalj-topp');
   });
 
@@ -276,8 +278,8 @@ test('Saker: Ribbefett-oppsett gir riktig ledelsesbilde, handlingsliste, spor og
     assert.match(flat[0], /datokontroll ved mottak på Frysa/);
     assert.match(flat[0], /1 dag over frist/);
     assert.ok(flat.some((x) => /venter på godkjenning/.test(x)));
-    assert.ok(flat.some((x) => /1 tiltak er ikke koblet til noe spor/.test(x)));
-    assert.ok(flat.some((x) => /1 årsak venter på vurdering/.test(x)));
+    assert.equal(flat.some((x) => /ikke koblet til noe spor/.test(x)), false);
+    assert.equal(flat.some((x) => /årsak venter på vurdering/.test(x)), false);
     assert.equal(flat.some((x) => /Vurder å sette saken til/.test(x)), false, 'ikke alle tiltak er ferdige');
   });
 
@@ -303,12 +305,10 @@ test('Saker: Ribbefett-oppsett gir riktig ledelsesbilde, handlingsliste, spor og
 
   await t.test('tiltak grupperes per spor; uten spor for seg; arkivert fullført regnes som gjort', async () => {
     const main = page.locator('#saker');
-    const grp = (navn) => main.locator('.sak-group', { has: page.locator('.sak-group-title', { hasText: navn }) });
-    assert.equal(await grp('Spor A').locator('.sak-tiltak').count(), 4); // 1,2,3 og 6
-    assert.equal(await grp('Spor B').locator('.sak-tiltak').count(), 3); // 4,5 og 6
-    assert.equal(await grp('Ikke koblet til spor').locator('.sak-tiltak').count(), 1);
-    assert.match(await grp('Ikke koblet til spor').textContent(), /tapskategori/);
-    assert.match(await grp('Spor A').locator('.sak-tiltak', { hasText: 'utgått vare sendt til Sarpsborg' }).textContent(), /Fullført/);
+    const rows = main.locator('.sak-tiltak-samlet .sak-tiltak');
+    assert.equal(await rows.count(), 7);
+    assert.equal(await main.locator('.sak-group-title').count(), 0);
+    assert.match(await rows.filter({ hasText: 'tapskategori' }).textContent(), /tapskategori/);
     assert.equal(await main.locator('.sak-tiltak.is-overdue').count(), 1);
     await shot(page, '13-ribbefett-tiltak');
   });

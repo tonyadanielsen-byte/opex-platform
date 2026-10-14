@@ -159,31 +159,20 @@
   }
 
   function tiltakSeksjon(m, H) {
-    var s = m.summary;
-    if (s.totalt === 0 && s.ekskludert === 0 && !m.ikkeKoblet.length) {
-      return h('div', { class: 'sak-empty-inline sak-empty-big' }, [
-        U.icon('link', 28),
-        h('p', null, 'Ingen tiltak er koblet til denne saken.'),
-        !m.sak.lukket ? U.button('Koble tiltak', { icon: 'link', variant: 'primary', on: { click: H.kobleTiltak } }) : null,
-      ]);
-    }
+    if (!m.alleTiltak.length) return h('div', { class: 'sak-empty-inline sak-empty-big' }, [
+      U.icon('link', 28), h('p', null, 'Ingen tiltak er koblet til denne saken.'),
+      !m.sak.lukket ? U.button('Koble tiltak', { icon: 'link', variant: 'primary', on: { click: H.kobleTiltak } }) : null,
+    ]);
+    var aktive = m.alleTiltak.filter(function (r) { return r.klasse !== 'stanset' && r.klasse !== 'avsluttet'; });
     var deler = [];
-    m.spor.forEach(function (sp) {
-      deler.push(sp.tiltak.length ? tiltakGruppe('Spor ' + sp.kode + ' · ' + sp.sporsmal, 'flag', sp.tiltak, m, H) : h('div', { class: 'sak-group' }, [
-        h('h3', { class: 'sak-group-title' }, [U.icon('flag', 16), 'Spor ' + sp.kode + ' · ' + sp.sporsmal, h('span', { class: 'sak-count' }, '0')]),
-        h('p', { class: 'sak-empty-inline' }, 'Ingen tiltak er koblet til dette sporet.'),
-      ]));
-    });
-    if (m.ikkeKoblet.length) deler.push(tiltakGruppe(m.spor.length ? 'Ikke koblet til spor' : 'Tiltak', 'list', m.ikkeKoblet, m, H, m.spor.length ? 'Tiltak i saken som ikke svarer på noe bestemt spor ennå.' : null));
-    var sep = m.separate.stanset.concat(m.separate.avsluttet);
-    if (sep.length) {
-      deler.push(h('details', { class: 'sak-group sak-group-closed' }, [
-        h('summary', null, [U.icon('pause', 16), 'Stansede og avsluttede (' + sep.length + ')']),
-        h('p', { class: 'sak-hint' }, 'Regnes ikke med i fremdriften.'),
-        h('ul', { class: 'sak-tiltak-list' }, sep.map(function (r) { return tiltakRad(m, r, H, ''); })),
-      ]));
-    }
-    return h('div', { class: 'sak-groups' }, deler);
+    if (aktive.length) deler.push(h('ul', { class: 'sak-tiltak-list sak-tiltak-samlet' }, aktive.map(function (r) { return tiltakRad(m, r, H, ''); })));
+    var separate = m.separate.stanset.concat(m.separate.avsluttet);
+    if (separate.length) deler.push(h('details', { class: 'sak-group sak-group-closed' }, [
+      h('summary', null, [U.icon('pause', 16), 'Stansede og avsluttede (' + separate.length + ')']),
+      h('p', { class: 'sak-hint' }, 'Regnes ikke med i fremdriften.'),
+      h('ul', { class: 'sak-tiltak-list' }, separate.map(function (r) { return tiltakRad(m, r, H, ''); })),
+    ]));
+    return h('div', { class: 'sak-groups sak-groups-main' }, deler);
   }
 
   /* ------------------------------------------------------------------ 5. aktivitet */
@@ -262,10 +251,13 @@
     if (ctx.utdatert) page.appendChild(h('div', { class: 'sak-alert sak-tone-warn', role: 'status' }, [U.icon('info', 16), h('span', null, ctx.utdatert)]));
     if (ctx.feil) page.appendChild(h('div', { class: 'sak-alert sak-tone-warn', role: 'status' }, [U.icon('info', 16), h('span', null, 'Kunne ikke oppdatere: ' + ctx.feil.message)]));
 
-    page.appendChild(section('ledelse', 'Ledelsesbilde', 'layers', ledelsesbilde(m), { note: 'Tallene beregnes fra tiltakene hver gang siden vises. De lagres aldri.' }));
+    page.appendChild(section('ledelse', 'Saksoversikt', 'layers', ledelsesbilde(m)));
+    page.appendChild(section('tiltak', 'Tiltak · ' + m.alleTiltak.length, 'list', tiltakSeksjon(m, H), { actions: !lukket && m.summary.totalt ? U.button('Koble tiltak', { icon: 'plus', small: true, variant: 'ghost', on: { click: H.kobleTiltak } }) : null }));
     page.appendChild(section('handling', 'Krever handling', 'alert', kreverHandling(m, H), m.kreverHandling.length && !lukket ? { actions: h('span', { class: 'sak-count' }, String(m.kreverHandling.length)) } : null));
-    page.appendChild(section('arsaker', 'Årsaksbilde', 'help', arsaksbilde(m, H, ctx.ui), { note: 'Årsaker er menneskelige vurderinger. Hver vurdering viser hvem som gjorde den, og hvilket grunnlag som ligger bak.' }));
-    page.appendChild(section('tiltak', 'Tiltak', 'list', tiltakSeksjon(m, H), { actions: !lukket && m.summary.totalt ? U.button('Koble tiltak', { icon: 'plus', small: true, variant: 'ghost', on: { click: H.kobleTiltak } }) : null }));
+    page.appendChild(h('details', { class: 'sak-optional-analysis', open: !!ctx.ui.visAnalyse }, [
+      h('summary', { on: { click: function () { ctx.ui.visAnalyse = !ctx.ui.visAnalyse; } } }, [U.icon('help', 18), 'Årsaker og spor', h('span', { class: 'sak-muted' }, ' · Valgfritt')]),
+      section('arsaker', 'Årsaksbilde', 'help', arsaksbilde(m, H, ctx.ui), { note: 'Registrer årsaker og vurder grunnlag ved behov.' }),
+    ]));
     page.appendChild(section('aktivitet', 'Aktivitet', 'activity', aktivitet(m, ctx.ui, H)));
     return page;
   }
