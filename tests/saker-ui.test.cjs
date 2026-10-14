@@ -91,7 +91,7 @@ test('Saker: navigasjon, opprettelse, kobling, årsaker, frakobling (én økt)',
     await main.getByText('Saken ble opprettet').waitFor();
     for (const h2 of ['Saksoversikt', 'Krever handling', 'Tiltak · 0', 'Aktivitet']) await main.getByRole('heading', { level: 2, name: h2 }).waitFor();
     const order = await main.locator('.sak-section h2').allTextContents();
-    assert.deepEqual(order.map((x) => x.trim()), ['Saksoversikt', 'Tiltak · 0', 'Krever handling', 'Årsaksbilde', 'Aktivitet']);
+    assert.deepEqual(order.map((x) => x.trim()), ['Saksoversikt', 'Systemets oppsummering', 'Tiltak · 0', 'Krever handling', 'Årsaksbilde', 'Aktivitet']);
     assert.equal(await main.locator('.sak-optional-analysis').getAttribute('open'), null);
     await main.locator('.sak-optional-analysis > summary').click();
     await shot(page, '04-tom-sak');
