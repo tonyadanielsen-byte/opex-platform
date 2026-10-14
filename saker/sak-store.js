@@ -199,6 +199,7 @@
   var ops = {
     createSak: function (input) { return skriv('createSakV1', input, null); },
     updateSak: function (input) { return skriv('updateSakV1', input, input.sakId); },
+    deleteSak: function (input) { return call('deleteSakV1', input); },
     setTiltakSak: function (input, opts) { return skriv('setTiltakSakV1', input, input.sakId, opts); },
     removeTiltakSak: function (input, opts) { return skriv('removeTiltakSakV1', input, input.sakId, opts); },
     createSpor: function (input) { return skriv('createSporV1', input, input.sakId); },
@@ -209,7 +210,7 @@
 
   root.OpExSakStore = Object.freeze({
     state: state, subscribe: subscribe, loadSaker: loadSaker, loadSak: loadSak, ensureDetaljer: ensureDetaljer,
-    createSak: ops.createSak, updateSak: ops.updateSak, setTiltakSak: ops.setTiltakSak, removeTiltakSak: ops.removeTiltakSak,
+    createSak: ops.createSak, updateSak: ops.updateSak, deleteSak: ops.deleteSak, setTiltakSak: ops.setTiltakSak, removeTiltakSak: ops.removeTiltakSak,
     createSpor: ops.createSpor,
     createArsak: ops.createArsak, updateArsak: ops.updateArsak, refreshSak: ops.refreshSak,
     SakApiError: SakApiError, call: call, nullstill: nullstill,
