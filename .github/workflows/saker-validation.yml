@@ -1,14 +1,8 @@
 name: Saker MVP-0 validation (no deploy)
 on:
+  pull_request:
   push:
-    branches: [feature/saker-mvp0, fix/saker-get-sak-index, feature/saker-delete, fix/saker-delete-transaction, feature/saker-tiltak-first, security/disable-destructive-backup-import]
-    paths:
-      - "saker/**"
-      - "functions/**"
-      - "tests/**"
-      - "index.html"
-      - "sw.js"
-      - ".github/workflows/saker-validation.yml"
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
