@@ -159,31 +159,20 @@
   }
 
   function tiltakSeksjon(m, H) {
-    var s = m.summary;
-    if (s.totalt === 0 && s.ekskludert === 0 && !m.ikkeKoblet.length) {
-      return h('div', { class: 'sak-empty-inline sak-empty-big' }, [
-        U.icon('link', 28),
-        h('p', null, 'Ingen tiltak er koblet til denne saken.'),
-        !m.sak.lukket ? U.button('Koble tiltak', { icon: 'link', variant: 'primary', on: { click: H.kobleTiltak } }) : null,
-      ]);
-    }
+    if (!m.alleTiltak.length) return h('div', { class: 'sak-empty-inline sak-empty-big' }, [
+      U.icon('link', 28), h('p', null, 'Ingen tiltak er koblet til denne saken.'),
+      !m.sak.lukket ? U.button('Koble tiltak', { icon: 'link', variant: 'primary', on: { click: H.kobleTiltak } }) : null,
+    ]);
+    var aktive = m.alleTiltak.filter(function (r) { return r.klasse !== 'stanset' && r.klasse !== 'avsluttet'; });
     var deler = [];
-    m.spor.forEach(function (sp) {
-      deler.push(sp.tiltak.length ? tiltakGruppe('Spor ' + sp.kode + ' · ' + sp.sporsmal, 'flag', sp.tiltak, m, H) : h('div', { class: 'sak-group' }, [
-        h('h3', { class: 'sak-group-title' }, [U.icon('flag', 16), 'Spor ' + sp.kode + ' · ' + sp.sporsmal, h('span', { class: 'sak-count' }, '0')]),
-        h('p', { class: 'sak-empty-inline' }, 'Ingen tiltak er koblet til dette sporet.'),
-      ]));
-    });
-    if (m.ikkeKoblet.length) deler.push(tiltakGruppe(m.spor.length ? 'Ikke koblet til spor' : 'Tiltak', 'list', m.ikkeKoblet, m, H, m.spor.length ? 'Tiltak i saken som ikke svarer på noe bestemt spor ennå.' : null));
-    var sep = m.separate.stanset.concat(m.separate.avsluttet);
-    if (sep.length) {
-      deler.push(h('details', { class: 'sak-group sak-group-closed' }, [
-        h('summary', null, [U.icon('pause', 16), 'Stansede og avsluttede (' + sep.length + ')']),
-        h('p', { class: 'sak-hint' }, 'Regnes ikke med i fremdriften.'),
-        h('ul', { class: 'sak-tiltak-list' }, sep.map(function (r) { return tiltakRad(m, r, H, ''); })),
-      ]));
-    }
-    return h('div', { class: 'sak-groups' }, deler);
+    if (aktive.length) deler.push(h('ul', { class: 'sak-tiltak-list sak-tiltak-samlet' }, aktive.map(function (r) { return tiltakRad(m, r, H, ''); })));
+    var separate = m.separate.stanset.concat(m.separate.avsluttet);
+    if (separate.length) deler.push(h('details', { class: 'sak-group sak-group-closed' }, [
+      h('summary', null, [U.icon('pause', 16), 'Stansede og avsluttede (' + separate.length + ')']),
+      h('p', { class: 'sak-hint' }, 'Regnes ikke med i fremdriften.'),
+      h('ul', { class: 'sak-tiltak-list' }, separate.map(function (r) { return tiltakRad(m, r, H, ''); })),
+    ]));
+    return h('div', { class: 'sak-groups sak-groups-main' }, deler);
   }
 
   /* ------------------------------------------------------------------ 5. aktivitet */
