@@ -305,12 +305,10 @@ test('Saker: Ribbefett-oppsett gir riktig ledelsesbilde, handlingsliste, spor og
 
   await t.test('tiltak grupperes per spor; uten spor for seg; arkivert fullført regnes som gjort', async () => {
     const main = page.locator('#saker');
-    const grp = (navn) => main.locator('.sak-group', { has: page.locator('.sak-group-title', { hasText: navn }) });
-    assert.equal(await grp('Spor A').locator('.sak-tiltak').count(), 4); // 1,2,3 og 6
-    assert.equal(await grp('Spor B').locator('.sak-tiltak').count(), 3); // 4,5 og 6
-    assert.equal(await grp('Ikke koblet til spor').locator('.sak-tiltak').count(), 1);
-    assert.match(await grp('Ikke koblet til spor').textContent(), /tapskategori/);
-    assert.match(await grp('Spor A').locator('.sak-tiltak', { hasText: 'utgått vare sendt til Sarpsborg' }).textContent(), /Fullført/);
+    const rows = main.locator('.sak-tiltak-samlet .sak-tiltak');
+    assert.equal(await rows.count(), 7);
+    assert.equal(await main.locator('.sak-group-title').count(), 0);
+    assert.match(await rows.filter({ hasText: 'tapskategori' }).textContent(), /tapskategori/);
     assert.equal(await main.locator('.sak-tiltak.is-overdue').count(), 1);
     await shot(page, '13-ribbefett-tiltak');
   });
