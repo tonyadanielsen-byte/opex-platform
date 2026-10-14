@@ -36,7 +36,7 @@ jobs:
           npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 @firebase/rules-unit-testing@4.0.1 firebase@11.10.0 firebase-tools@14.17.0
           npx playwright install --with-deps chromium
       - name: Full Saker regression suite
-        run: node --test tests/*.test.cjs
+        run: node --test $(find tests -maxdepth 1 -name '*.test.cjs' ! -name 'rtdb-emulator.test.cjs' | sort)
       - name: Firebase RTDB emulator permissions
         run: npx firebase --config firebase.rules-test.json emulators:exec --only database --project opex-rules-local-test "node --test tests/rtdb-emulator.test.cjs"
   deploy:
