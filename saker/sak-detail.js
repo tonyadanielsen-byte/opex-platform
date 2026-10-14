@@ -251,10 +251,13 @@
     if (ctx.utdatert) page.appendChild(h('div', { class: 'sak-alert sak-tone-warn', role: 'status' }, [U.icon('info', 16), h('span', null, ctx.utdatert)]));
     if (ctx.feil) page.appendChild(h('div', { class: 'sak-alert sak-tone-warn', role: 'status' }, [U.icon('info', 16), h('span', null, 'Kunne ikke oppdatere: ' + ctx.feil.message)]));
 
-    page.appendChild(section('ledelse', 'Ledelsesbilde', 'layers', ledelsesbilde(m), { note: 'Tallene beregnes fra tiltakene hver gang siden vises. De lagres aldri.' }));
+    page.appendChild(section('ledelse', 'Saksoversikt', 'layers', ledelsesbilde(m)));
+    page.appendChild(section('tiltak', 'Tiltak · ' + m.alleTiltak.length, 'list', tiltakSeksjon(m, H), { actions: !lukket && m.summary.totalt ? U.button('Koble tiltak', { icon: 'plus', small: true, variant: 'ghost', on: { click: H.kobleTiltak } }) : null }));
     page.appendChild(section('handling', 'Krever handling', 'alert', kreverHandling(m, H), m.kreverHandling.length && !lukket ? { actions: h('span', { class: 'sak-count' }, String(m.kreverHandling.length)) } : null));
-    page.appendChild(section('arsaker', 'Årsaksbilde', 'help', arsaksbilde(m, H, ctx.ui), { note: 'Årsaker er menneskelige vurderinger. Hver vurdering viser hvem som gjorde den, og hvilket grunnlag som ligger bak.' }));
-    page.appendChild(section('tiltak', 'Tiltak', 'list', tiltakSeksjon(m, H), { actions: !lukket && m.summary.totalt ? U.button('Koble tiltak', { icon: 'plus', small: true, variant: 'ghost', on: { click: H.kobleTiltak } }) : null }));
+    page.appendChild(h('details', { class: 'sak-optional-analysis' }, [
+      h('summary', null, [U.icon('help', 18), 'Årsaker og spor', h('span', { class: 'sak-muted' }, ' · Valgfritt')]),
+      section('arsaker', 'Årsaksbilde', 'help', arsaksbilde(m, H, ctx.ui), { note: 'Registrer årsaker og vurder grunnlag ved behov.' }),
+    ]));
     page.appendChild(section('aktivitet', 'Aktivitet', 'activity', aktivitet(m, ctx.ui, H)));
     return page;
   }
