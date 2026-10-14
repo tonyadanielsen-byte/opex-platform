@@ -149,13 +149,6 @@
       out.push({ id: 'godkjenning:' + r.id, nivaa: 'info', ikon: 'clock', tekst: '«' + kutt(r.tittel, 70) + '» venter på godkjenning', detalj: r.eier ? 'Eier: ' + r.eier : '', handling: { type: 'apneTiltak', tiltakId: r.id, label: 'Åpne tiltak' } });
     });
 
-    m.spor.forEach(function (sp) {
-      if (!sp.arsaker.length) out.push({ id: 'spor-uten-arsak:' + sp.sporId, nivaa: 'info', ikon: 'help', tekst: 'Spor ' + sp.kode + ' har ingen registrerte årsaker', detalj: sp.sporsmal, handling: { type: 'nyArsak', sporId: sp.sporId, label: 'Registrer årsak' } });
-    });
-
-    var hypoteser = m.spor.reduce(function (n, sp) { return n + sp.arsaker.filter(function (a) { return a.status === 'hypotese'; }).length; }, 0);
-    if (hypoteser) out.push({ id: 'hypoteser', nivaa: 'info', ikon: 'help', tekst: flertall(hypoteser, 'årsak venter', 'årsaker venter') + ' på vurdering', detalj: 'Status er «Hypotese». Vurder om de er støttet, bekreftet eller avkreftet.', handling: null });
-
     if (apen && s.totalt > 0 && s.gjenstar === 0 && s.gjort > 0) {
       out.push({ id: 'alle-ferdig', nivaa: 'info', ikon: 'check', tekst: 'Alle tiltak er fullført', detalj: 'Vurder å sette saken til «Løst». Status endres bare manuelt.', handling: { type: 'status', label: 'Endre status' } });
     }
