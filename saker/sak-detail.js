@@ -209,6 +209,59 @@
     return wrap;
   }
 
+
+  /* ------------------------------------------------------------------ enkel saksjournal */
+  function journalPanel(m) {
+    var panel = h('details', { class: 'sak-journal' });
+    var title = h('summary', null, [U.icon('book-open', 18), ' Saksjournal · observasjoner, undersøkelser og beslutninger']);
+    var content = h('div', { class: 'sak-card' });
+    var output = h('div', { role: 'status', class: 'sak-muted' }, 'Åpne journalen for å hente registreringer.');
+    var type = h('select', { 'aria-label': 'Type journalpost' }, [
+      h('option', { value: 'observasjon' }, 'Observasjon'),
+      h('option', { value: 'undersokelse' }, 'Undersøkelse'),
+      h('option', { value: 'beslutning' }, 'Beslutning'),
+      h('option', { value: 'dokumentasjon' }, 'Dokumentasjon'),
+      h('option', { value: 'effektmaling' }, 'Effektmåling'),
+    ]);
+    var input = h('textarea', { rows: 3, maxlength: 3000, placeholder: 'Beskriv hva som er observert, undersøkt eller besluttet …', 'aria-label': 'Journaltekst' });
+    var save = U.button('Registrer', { icon: 'plus', variant: 'secondary', on: { click: async function () {
+      var text = input.value.trim();
+      if (!text) { output.textContent = 'Skriv en tekst før du registrerer.'; return; }
+      save.disabled = true;
+      try {
+        await root.OpExSakStore.call('createSakJournalEntryV1', { sakId: m.sak.sakId, type: type.value, tekst: text });
+        input.value = '';
+        await load();
+      } catch (error) { output.textContent = (error && error.message) || 'Kunne ikke registrere journalpost.'; }
+      finally { save.disabled = false; }
+    } } });
+    var list = h('ul', { class: 'sak-journal-poster' });
+    async function load() {
+      output.textContent = 'Henter journalen …';
+      try {
+        var result = await root.OpExSakStore.call('getSakJournalV1', { sakId: m.sak.sakId });
+        var poster = (result && result.poster || []).filter(function (p) { return !p.fjernet; });
+        list.textContent = '';
+        poster.forEach(function (p) {
+          var label = { observasjon:'Observasjon', undersokelse:'Undersøkelse', beslutning:'Beslutning', dokumentasjon:'Dokumentasjon', effektmaling:'Effektmåling' }[p.type] || 'Journal';
+          list.appendChild(h('li', { class: 'sak-card' }, [
+            h('b', null, label),
+            h('p', null, p.tekst || ''),
+            h('small', { class: 'sak-muted' }, p.opprettetAt ? U.fmtDato(p.opprettetAt, m.idag) : ''),
+          ]));
+        });
+        output.textContent = poster.length ? poster.length + ' registreringer i journalen.' : 'Ingen journalposter ennå.';
+      } catch (error) { output.textContent = (error && error.message) || 'Kunne ikke hente journalen.'; }
+    }
+    panel.appendChild(title);
+    content.appendChild(output);
+    content.appendChild(list);
+    if (!m.sak.lukket) content.appendChild(h('div', { class: 'sak-journal-form' }, [type, input, save]));
+    panel.appendChild(content);
+    panel.addEventListener('toggle', function () { if (panel.open) load(); });
+    return panel;
+  }
+
   /* ------------------------------------------------------------------ side */
 
   /**
@@ -257,6 +310,7 @@
         h('p', null, m.saksOppsummering.tekst),
         h('small', { class: 'sak-muted' }, 'Beregnet fra registrerte tiltak per ' + m.saksOppsummering.beregnetDato + '. Ingen AI-vurdering.'),
       ])));
+    page.appendChild(journalPanel(m));
     page.appendChild(section('tiltak', 'Tiltak · ' + m.alleTiltak.length, 'list', tiltakSeksjon(m, H), { actions: !lukket && m.summary.totalt ? U.button('Koble tiltak', { icon: 'plus', small: true, variant: 'ghost', on: { click: H.kobleTiltak } }) : null }));
     page.appendChild(section('handling', 'Krever handling', 'alert', kreverHandling(m, H), m.kreverHandling.length && !lukket ? { actions: h('span', { class: 'sak-count' }, String(m.kreverHandling.length)) } : null));
     page.appendChild(h('details', { class: 'sak-optional-analysis', open: !!ctx.ui.visAnalyse }, [
