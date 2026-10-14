@@ -44,7 +44,7 @@ exports.createSakJournalEntryV1=onCall(OPTIONS,async request=>{
   if(!TYPES.has(type))throw new HttpsError('invalid-argument','Ugyldig type.');
   if(typeof tekst!=='string'||!tekst.trim()||tekst.trim().length>3000)
     throw new HttpsError('invalid-argument','Tekst må være mellom 1 og 3000 tegn.');
-  if(gjelderDato!==undefined && (typeof gjelderDato!=='string'|| !/^\\d{4}-\\d{2}-\\d{2}$/.test(gjelderDato)||Number.isNaN(Date.parse(gjelderDato+'T12:00:00Z'))))
+  if(gjelderDato!==undefined && (typeof gjelderDato!=='string'|| !/^\d{4}-\d{2}-\d{2}$/.test(gjelderDato)||Number.isNaN(Date.parse(gjelderDato+'T12:00:00Z'))))
     throw new HttpsError('invalid-argument','Ugyldig dato.');
   const id=db.ref('/sakJournal/'+sakId).push().key, now=new Date().toISOString();
   const post={type,tekst:tekst.trim(),opprettetAv:uid,opprettetAt:now,fjernet:false};
