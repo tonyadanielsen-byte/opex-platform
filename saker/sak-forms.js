@@ -431,8 +431,30 @@
     });
   }
 
+  /* Administratorsletting er en arkivering av saken, uten sletting av historikk eller tiltak. */
+  function slettSak(model, opts) {
+    var sak = model.sak;
+    var kode = input('', { placeholder: sak.kode, 'data-autofocus': '1', autocomplete: 'off' });
+    var body = h('div', { class: 'sak-form' }, [
+      h('p', null, 'Saken tas ut av Saksoversikten. Tiltak og hendelseshistorikk beholdes. Handlingen kan ikke angres fra appen.'),
+      h('p', { class: 'sak-muted' }, 'Sletting er ikke mulig dersom saken har tilknyttede tiltak.'),
+      field('Skriv ' + sak.kode + ' for å bekrefte', kode, null, { required: true }),
+    ]);
+    return openDialog({
+      title: 'Slette sak?', subtitle: sak.tittel, submitLabel: 'Slett sak',
+      submitVariant: 'danger', body: body,
+      onSubmit: async function () {
+        if (kode.value.trim() !== sak.kode) throw new Error('Saksnummeret stemmer ikke.');
+        await S.deleteSak({ sakId: sak.sakId, bekreftKode: kode.value.trim() });
+        await S.loadSaker({ force: true });
+        toastOk('Saken er fjernet fra oversikten.');
+        if (opts && opts.onDone) opts.onDone();
+      },
+    });
+  }
+
   root.OpExSakForms = Object.freeze({
-    openDialog: openDialog, nySak: nySak, nySpor: nySpor, endreSak: endreSak, endreStatus: endreStatus, kobleTiltak: kobleTiltak,
+    openDialog: openDialog, nySak: nySak, slettSak: slettSak, nySpor: nySpor, endreSak: endreSak, endreStatus: endreStatus, kobleTiltak: kobleTiltak,
     endreSporForTiltak: endreSporForTiltak, frakobleTiltak: frakobleTiltak, nyArsak: nyArsak, vurderArsak: vurderArsak, fjernArsak: fjernArsak,
   });
 }(typeof self !== 'undefined' ? self : this));
