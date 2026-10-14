@@ -1,26 +1,25 @@
 name: Firebase database rules checks
 on:
   pull_request:
-    paths:
-      - "database.rules.json"
-      - "tests/rtdb-rules.test.cjs"
-      - ".github/workflows/database-rules-check.yml"
   push:
     branches: [main]
-    paths:
-      - "database.rules.json"
-      - "tests/rtdb-rules.test.cjs"
-      - ".github/workflows/database-rules-check.yml"
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   check-rules:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Verify versioned RTDB rule baseline
-        run: node --test tests/rtdb-rules.test.cjs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install isolated rules test dependencies
+        run: npm install --no-save --no-package-lock --no-audit --no-fund @firebase/rules-unit-testing@4.0.1 firebase@11.10.0 firebase-tools@14.17.0
+      - name: Test rules against Firebase Realtime Database Emulator
+        run: npx firebase --config firebase.rules-test.json emulators:exec --only database --project opex-rules-local-test "node --test tests/rtdb-rules.test.cjs tests/rtdb-emulator.test.cjs"
