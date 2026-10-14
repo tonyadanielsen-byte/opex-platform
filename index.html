@@ -1573,7 +1573,7 @@ window.matchMedia?.('(prefers-color-scheme: dark)')?.addEventListener?.('change'
 window.addEventListener('resize',()=>{if(userPrefs.mineCardCols==='auto'){document.documentElement.style.setProperty('--action-cols',effectiveCardColumns())}});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeSettings()});
 /* Vertsflate for Saker-modulen (saker/*.js): modulen leser appens tilstand kun herfra. Ingen overstyring av eksisterende funksjoner. */
-window.OpExHost={functionsBase:'https://europe-west1-opex-nortura.cloudfunctions.net',getIdToken:()=>auth.currentUser?auth.currentUser.getIdToken():Promise.reject(new Error('Ikke innlogget')),getUser:()=>({uid:authUser?.uid||'',name:activeUser||''}),getTasks:()=>tasks,getUsers:()=>Object.entries(PROFILE_BY_UID).map(([uid,p])=>({uid,name:p.name})),nameOf:uid=>PROFILE_BY_UID[uid]?.name||'',openTiltak:key=>openModal(key),toast:(m,err)=>toast(m,err),show:id=>show(id)};
+window.OpExHost={functionsBase:'https://europe-west1-opex-nortura.cloudfunctions.net',getIdToken:()=>auth.currentUser?auth.currentUser.getIdToken():Promise.reject(new Error('Ikke innlogget')),getUser:()=>({uid:authUser?.uid||'',name:activeUser||''}),isAdmin:()=>isAdmin(),getTasks:()=>tasks,getUsers:()=>Object.entries(PROFILE_BY_UID).map(([uid,p])=>({uid,name:p.name})),nameOf:uid=>PROFILE_BY_UID[uid]?.name||'',openTiltak:key=>openModal(key),toast:(m,err)=>toast(m,err),show:id=>show(id)};
 applyUserPreferences();boot();
 </script>
 </body></html>

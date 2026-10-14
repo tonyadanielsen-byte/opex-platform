@@ -255,6 +255,7 @@
         U.button('Endre status', { icon: 'flag', variant: 'secondary', on: { click: function () { H.endreStatus(); } } }),
         !lukket ? U.button('Rediger', { icon: 'pencil', variant: 'ghost', on: { click: H.rediger } }) : null,
         !lukket ? U.button('Koble tiltak', { icon: 'link', variant: 'primary', on: { click: H.kobleTiltak } }) : null,
+        H.kanSlette ? U.button('Slett sak', { icon: 'trash-2', variant: 'ghost', on: { click: H.slettSak } }) : null,
         U.button('', { icon: 'refresh', variant: 'ghost', ariaLabel: 'Oppdater', title: 'Oppdater', disabled: ctx.laster, on: { click: H.oppdater } }),
       ]),
     ]));

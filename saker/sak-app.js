@@ -92,6 +92,8 @@
       apneTiltak: function (id) { hh.openTiltak(id); },
       endreStatus: function (anbefalt) { F.endreStatus(sak, anbefalt); },
       rediger: function () { F.endreSak(sak); },
+      kanSlette: !!(hh.isAdmin && hh.isAdmin()),
+      slettSak: function () { F.slettSak(ctx.modell, { onDone: function () { gaaTil(null); } }); },
       kobleTiltak: function () { F.kobleTiltak(ctx.modell, ctx.detail, tasks(), S.state.saker || []); },
       endreSpor: function (rad) { F.endreSporForTiltak(ctx.modell, rad); },
       frakoble: function (rad) { F.frakobleTiltak(ctx.modell, rad); },
