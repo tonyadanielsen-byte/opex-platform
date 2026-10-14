@@ -38,6 +38,7 @@ test('Saker: navigasjon, opprettelse, kobling, årsaker, frakobling (én økt)',
     assert.equal(await tab.evaluate((el) => el.classList.contains('active')), true);
     await shot(page, '01-tom-oversikt');
     await page.locator('button.tab', { hasText: 'Dashboard' }).click();
+    await page.locator('#saker.active').waitFor({ state: 'detached' });
     assert.equal(await page.locator('#saker.active').count(), 0);
     await tab.click();
     await page.locator('#saker.active').waitFor();
