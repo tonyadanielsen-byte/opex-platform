@@ -1,7 +1,7 @@
 'use strict';
 // Read-only, deterministic source bundle. No AI/model calls and no production writes.
 const { createHash } = require('node:crypto');
-const SAFE_ID = /^[^.#$\\[\\]\/\x00-\x1f\x7f]{1,256}$/;
+const SAFE_ID = /^[A-Za-z0-9_-]{1,256}$/;
 function validId(value) { return typeof value === 'string' && SAFE_ID.test(value); }
 function entries(value) { return Object.entries(value && typeof value === 'object' && !Array.isArray(value) ? value : {}).sort(([a],[b]) => a.localeCompare(b)); }
 function pick(obj, fields) { const result = {}; for (const f of fields) if (obj && obj[f] !== undefined && obj[f] !== null) result[f] = obj[f]; return result; }
