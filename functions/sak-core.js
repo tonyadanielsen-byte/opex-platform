@@ -188,11 +188,12 @@ function eventsFor(deps, actor, list) {
 
 async function loadSak(deps, sakId) {
   const sak = (await deps.db.ref(`/saker/${sakId}`).get()).val();
-  if (!isObject(sak)) fail('not-found', 'Saken finnes ikke.');
+  if (!isObject(sak) || sak.slettetAt) fail('not-found', 'Saken finnes ikke.');
   return sak;
 }
 
 function assertOpen(sak) {
+  if (sak.slettetAt) fail('failed-precondition', 'Saken er slettet.');
   if (sak.status === 'Lukket') fail('failed-precondition', 'Saken er lukket. Åpne den på nytt (endre status) før du endrer innholdet.');
 }
 
@@ -277,7 +278,7 @@ async function getSaker(deps, uid, raw) {
   await requireAuthorized(deps, uid);
   const all = (await deps.db.ref('/saker').get()).val() || {};
   const saker = Object.entries(all)
-    .filter(([, s]) => isObject(s))
+    .filter(([, s]) => isObject(s) && !s.slettetAt)
     .map(([sakId, s]) => publicSak(sakId, s))
     .sort((a, b) => a.kode.localeCompare(b.kode) || a.sakId.localeCompare(b.sakId))
     .slice(0, LIMITS.sakerMax);
@@ -351,6 +352,33 @@ async function getSak(deps, uid, raw) {
     },
     hentetAt: deps.now().toISOString(),
   };
+}
+
+/**
+ * Skjuler en tom sak fra aktiv bruk uten å slette historikken.
+ * Serverstyrt admin-rolle i /sakAdmins/{uid}; klientens isAdmin er kun visning.
+ * Ingen tiltak, spor, årsaker eller hendelser slettes fysisk.
+ */
+async function deleteSak(deps, uid, raw) {
+  const input = objectInput(raw, ['sakId', 'bekreftKode']);
+  const actor = await requireAuthorized(deps, uid);
+  const admin = (await deps.db.ref(`/sakAdmins/${actor}`).get()).val();
+  if (admin !== true) fail('permission-denied', 'Kun administrator kan slette saker.');
+  const sakId = requireId(input.sakId, 'sakId');
+  const sak = await loadSak(deps, sakId);
+  if (input.bekreftKode !== sak.kode) fail('invalid-argument', 'Bekreft saksnummeret før sletting.');
+  const all = (await deps.db.ref('/tiltak').get()).val() || {};
+  if (Object.values(all).some((t) => isObject(t) && t.sakId === sakId)) {
+    fail('failed-precondition', 'Saken har fortsatt tilknyttede tiltak. Frakoble tiltakene først.');
+  }
+  const now = deps.now().toISOString();
+  const tx = await deps.db.ref(`/saker/${sakId}`).transaction((cur) => {
+    if (!isObject(cur) || cur.slettetAt || cur.kode !== input.bekreftKode) return undefined;
+    return { ...cur, slettetAt: now, slettetAv: actor };
+  });
+  if (!tx.committed) fail('aborted', 'Saken ble endret av en annen operasjon. Oppdater og prøv igjen.');
+  // Historikken bevares med slettetAt/slettetAv på saken selv.
+  return { sakId, slettet: true };
 }
 
 /** Oppdaterer tittel, problemstilling, status, eier og/eller områder. Status settes bare manuelt. */
@@ -846,6 +874,7 @@ module.exports = {
   getSaker,
   getSak,
   updateSak,
+  deleteSak,
   setTiltakSak,
   removeTiltakSak,
   createSpor,
