@@ -265,7 +265,7 @@ test('Saker: Ribbefett-oppsett gir riktig ledelsesbilde, handlingsliste, spor og
     assert.equal(await kpi('Forfalt'), '1');
     assert.equal(await kpi('Fullført'), '1');
     assert.equal(await kpi('Gjenstår'), '6');
-    await main.getByText('Tallene beregnes fra tiltakene').waitFor();
+    assert.equal(await main.locator('.sak-kpi').count(), 6);
     await shot(page, '11-ribbefett-detalj-topp');
   });
 
@@ -276,8 +276,8 @@ test('Saker: Ribbefett-oppsett gir riktig ledelsesbilde, handlingsliste, spor og
     assert.match(flat[0], /datokontroll ved mottak på Frysa/);
     assert.match(flat[0], /1 dag over frist/);
     assert.ok(flat.some((x) => /venter på godkjenning/.test(x)));
-    assert.ok(flat.some((x) => /1 tiltak er ikke koblet til noe spor/.test(x)));
-    assert.ok(flat.some((x) => /1 årsak venter på vurdering/.test(x)));
+    assert.equal(flat.some((x) => /ikke koblet til noe spor/.test(x)), false);
+    assert.equal(flat.some((x) => /årsak venter på vurdering/.test(x)), false);
     assert.equal(flat.some((x) => /Vurder å sette saken til/.test(x)), false, 'ikke alle tiltak er ferdige');
   });
 
