@@ -22,4 +22,4 @@ jobs:
       - name: Install isolated rules test dependencies
         run: npm install --no-save --no-package-lock --no-audit --no-fund @firebase/rules-unit-testing@4.0.1 firebase@11.10.0 firebase-tools@14.17.0
       - name: Test rules against Firebase Realtime Database Emulator
-        run: npx firebase emulators:exec --only database --project opex-rules-local-test "node --test tests/rtdb-rules.test.cjs tests/rtdb-emulator.test.cjs"
+        run: npx firebase --config firebase.rules-test.json emulators:exec --only database --project opex-rules-local-test "node --test tests/rtdb-rules.test.cjs tests/rtdb-emulator.test.cjs"
