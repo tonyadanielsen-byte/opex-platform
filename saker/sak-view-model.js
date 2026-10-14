@@ -139,10 +139,6 @@
       out.push({ id: 'ingen-tiltak', nivaa: 'advarsel', ikon: 'link', tekst: 'Ingen tiltak er koblet til saken', detalj: 'Koble eksisterende tiltak for å få fremdrift og frister.', handling: { type: 'kobleTiltak', label: 'Koble tiltak' } });
     }
 
-    if (m.ikkeKoblet.length && m.spor.length) {
-      out.push({ id: 'uten-spor', nivaa: 'advarsel', ikon: 'flag', tekst: flertall(m.ikkeKoblet.length, 'tiltak er', 'tiltak er') + ' ikke koblet til noe spor', detalj: 'Spor viser hvilket spørsmål tiltaket svarer på.', handling: { type: 'sporForTiltak', tiltakId: m.ikkeKoblet[0].id, label: 'Velg spor' } });
-    }
-
     var d = s.datakvalitet || {};
     if (d.ukjentStatus && d.ukjentStatus.antall) out.push({ id: 'dq-status', nivaa: 'advarsel', ikon: 'info', tekst: flertall(d.ukjentStatus.antall, 'tiltak har', 'tiltak har') + ' ukjent status', detalj: 'Telles som gjenstående til statusen rettes.', handling: { type: 'apneTiltak', tiltakId: d.ukjentStatus.tiltakIds[0], label: 'Åpne tiltak' } });
     if (d.ugyldigFrist && d.ugyldigFrist.antall) out.push({ id: 'dq-frist', nivaa: 'advarsel', ikon: 'info', tekst: flertall(d.ugyldigFrist.antall, 'tiltak har', 'tiltak har') + ' ugyldig frist', detalj: 'Telles ikke som forfalt før fristen rettes.', handling: { type: 'apneTiltak', tiltakId: d.ugyldigFrist.tiltakIds[0], label: 'Åpne tiltak' } });
