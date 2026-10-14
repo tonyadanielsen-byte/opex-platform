@@ -305,3 +305,11 @@ body[data-appearance="dark"] .sak-btn-primary { color: #fff; }
 .sak-optional-analysis[open]>summary:after{content:"⌃"}
 .sak-optional-analysis>.sak-section{border:0;margin:0;box-shadow:none}
 .sak-tiltak-samlet{margin:0}
+
+/* Kompakt saksoversikt: fremdrift øverst, tiltakene rett under. */
+.sak-detail #sak-sec-ledelse { gap: 10px; }
+.sak-detail #sak-sec-ledelse .sak-lead { gap: 10px; }
+.sak-detail #sak-sec-ledelse .sak-problem { font-size: 14px; line-height: 1.42; }
+.sak-detail #sak-sec-ledelse .sak-meta { gap: 8px 18px; }
+.sak-detail #sak-sec-ledelse .sak-kpi { padding: 8px 10px; }
+.sak-detail #sak-sec-ledelse .sak-kpi dd { font-size: 19px; }
