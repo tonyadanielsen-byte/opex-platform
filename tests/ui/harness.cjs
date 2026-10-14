@@ -21,7 +21,7 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
 const OPS = {
   createSakV1: core.createSak, getSakerV1: core.getSaker, getSakV1: core.getSak, updateSakV1: core.updateSak,
   setTiltakSakV1: core.setTiltakSak, removeTiltakSakV1: core.removeTiltakSak, createArsakV1: core.createArsak, updateArsakV1: core.updateArsak,
-  createSporV1: core.createSpor,
+  createSporV1: core.createSpor, deleteSakV1: core.deleteSak,
 };
 const HTTP = { 'invalid-argument': [400, 'INVALID_ARGUMENT'], unauthenticated: [401, 'UNAUTHENTICATED'], 'permission-denied': [403, 'PERMISSION_DENIED'], 'not-found': [404, 'NOT_FOUND'], aborted: [409, 'ABORTED'], 'failed-precondition': [400, 'FAILED_PRECONDITION'], internal: [500, 'INTERNAL'] };
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,content-type', 'access-control-allow-methods': 'POST,OPTIONS' };
