@@ -375,3 +375,25 @@ test('visningsmodellen tåler ufullstendig serverdata (eldre svar, manglende fel
   assert.deepEqual(m.aktivitet, []);
   assert.ok(Array.isArray(m.kreverHandling));
 });
+
+test('kommende frister vises samlet med lenke til nærmeste tiltak, uten å gjenta forfalte', () => {
+  const m = bygg();
+  const signal = m.kreverHandling.find((x) => x.id === 'frist-snart');
+  assert.ok(signal);
+  assert.equal(signal.nivaa, 'advarsel');
+  assert.equal(signal.handling.tiltakId, '-Or5');
+  assert.match(signal.tekst, /frist innen 7 dager/);
+  assert.equal(m.kreverHandling.filter((x) => x.id === 'frist-snart').length, 1);
+  assert.ok(m.kreverHandling.some((x) => x.id === 'forfalt:-Or4'));
+});
+
+test('automatisk saksoppsummering bruker bare faktiske tiltak og inneholder dato', () => {
+  const m = bygg();
+  assert.equal(m.saksOppsummering.beregnetDato, IDAG);
+  assert.match(m.saksOppsummering.tekst, /7 tiltak registrert/);
+  assert.match(m.saksOppsummering.tekst, /1 tiltak er forfalt/);
+  assert.match(m.saksOppsummering.tekst, /frist innen 7 dager/);
+  const empty = bygg(detail({ tiltakIds: [], tiltakSpor: {}, spor: [] }), []);
+  assert.equal(empty.saksOppsummering.tekst, 'Ingen tiltak er koblet til saken.');
+});
+

@@ -252,6 +252,11 @@
     if (ctx.feil) page.appendChild(h('div', { class: 'sak-alert sak-tone-warn', role: 'status' }, [U.icon('info', 16), h('span', null, 'Kunne ikke oppdatere: ' + ctx.feil.message)]));
 
     page.appendChild(section('ledelse', 'Saksoversikt', 'layers', ledelsesbilde(m)));
+    page.appendChild(section('oppsummering', 'Systemets oppsummering', 'file-text',
+      h('div', { class: 'sak-beregnet-oppsummering' }, [
+        h('p', null, m.saksOppsummering.tekst),
+        h('small', { class: 'sak-muted' }, 'Beregnet fra registrerte tiltak per ' + m.saksOppsummering.beregnetDato + '. Ingen AI-vurdering.'),
+      ])));
     page.appendChild(section('tiltak', 'Tiltak · ' + m.alleTiltak.length, 'list', tiltakSeksjon(m, H), { actions: !lukket && m.summary.totalt ? U.button('Koble tiltak', { icon: 'plus', small: true, variant: 'ghost', on: { click: H.kobleTiltak } }) : null }));
     page.appendChild(section('handling', 'Krever handling', 'alert', kreverHandling(m, H), m.kreverHandling.length && !lukket ? { actions: h('span', { class: 'sak-count' }, String(m.kreverHandling.length)) } : null));
     page.appendChild(h('details', { class: 'sak-optional-analysis', open: !!ctx.ui.visAnalyse }, [
