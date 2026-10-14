@@ -372,11 +372,13 @@ async function deleteSak(deps, uid, raw) {
     fail('failed-precondition', 'Saken har fortsatt tilknyttede tiltak. Frakoble tiltakene først.');
   }
   const now = deps.now().toISOString();
-  const tx = await deps.db.ref(`/saker/${sakId}`).transaction((cur) => {
-    if (!isObject(cur) || cur.slettetAt || cur.kode !== input.bekreftKode) return undefined;
-    return { ...cur, slettetAt: now, slettetAv: actor };
-  });
-  if (!tx.committed) fail('aborted', 'Saken ble endret av en annen operasjon. Oppdater og prøv igjen.');
+  // RTDB-transaksjoner får ofte null som første spekulative verdi i Admin SDK.
+  // Å avbryte på null gjør at sletting feiler selv om saken finnes.
+  // Bruk derfor en avgrenset multi-path update etter kontrollene ovenfor.
+  await commit(deps, {
+    [`/saker/${sakId}/slettetAt`]: now,
+    [`/saker/${sakId}/slettetAv`]: actor,
+  }, 'Kunne ikke slette saken. Prøv igjen.');
   // Historikken bevares med slettetAt/slettetAv på saken selv.
   return { sakId, slettet: true };
 }
