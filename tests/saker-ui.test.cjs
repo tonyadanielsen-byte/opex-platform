@@ -40,6 +40,7 @@ test('Saker: navigasjon, opprettelse, kobling, årsaker, frakobling (én økt)',
     await page.evaluate(() => window.show('dashboard'));
     await page.locator('#saker.active').waitFor({ state: 'detached' });
     assert.equal(await page.locator('#saker.active').count(), 0);
+    assert.notEqual(await page.evaluate(() => location.hash), '#saker', 'leaving Saker clears stale deep link');
     await tab.click();
     await page.locator('#saker.active').waitFor();
   });
