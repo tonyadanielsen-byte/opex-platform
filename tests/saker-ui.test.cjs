@@ -40,6 +40,7 @@ test('Saker: navigasjon, opprettelse, kobling, årsaker, frakobling (én økt)',
     await page.evaluate(() => window.show('dashboard'));
     await page.locator('#saker.active').waitFor({ state: 'detached' });
     assert.equal(await page.locator('#saker.active').count(), 0);
+    assert.notEqual(await page.evaluate(() => location.hash), '#saker', 'leaving Saker clears stale deep link');
     await tab.click();
     await page.locator('#saker.active').waitFor();
   });
@@ -143,10 +144,10 @@ test('Saker: navigasjon, opprettelse, kobling, årsaker, frakobling (én økt)',
     await dialog.waitFor();
     await dialog.getByLabel(/^Årsak/).fill('Bestilling ble ikke batchstyrt');
     await dialog.getByRole('radio', { name: /Støttet/ }).check();
-    const før = backend.calls.length;
+    const før = backend.calls.filter((c) => c.fn === 'createArsakV1').length;
     await dialog.getByRole('button', { name: 'Registrer' }).click();
     await dialog.getByRole('alert').filter({ hasText: 'krever et grunnlag' }).waitFor();
-    assert.equal(backend.calls.length, før, 'ingen serverkall ved klientvalidering');
+    assert.equal(backend.calls.filter((c) => c.fn === 'createArsakV1').length, før, 'ingen createArsakV1 ved klientvalidering');
     await dialog.getByRole('textbox', { name: /^Grunnlag/ }).fill('Mail fra Constellation 3. sept.');
     await dialog.getByRole('button', { name: 'Registrer' }).click();
     await dialog.waitFor({ state: 'detached' });

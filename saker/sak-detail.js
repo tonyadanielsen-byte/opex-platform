@@ -247,7 +247,7 @@
           list.appendChild(h('li', { class: 'sak-card' }, [
             h('b', null, label),
             h('p', null, p.tekst || ''),
-            h('small', { class: 'sak-muted' }, p.opprettetAt ? U.fmtDato(p.opprettetAt, m.idag) : ''),
+            h('small', { class: 'sak-muted' }, [(p.opprettetAt ? U.fmtDato(p.opprettetAt, m.idag) : ''), ' · ', ((root.OpExHost && root.OpExHost.nameOf && root.OpExHost.nameOf(p.opprettetAv)) || 'Ukjent bruker')].join('')),
           ]));
         });
         output.textContent = poster.length ? poster.length + ' registreringer i journalen.' : 'Ingen journalposter ennå.';

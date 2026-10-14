@@ -68,5 +68,8 @@ jobs:
       - name: Install Firebase CLI
         run: npm install --global firebase-tools
 
+      - name: Set 7-day Artifact Registry cleanup for Functions builds
+        run: firebase functions:artifacts:setpolicy --location europe-west1 --days 7 --project opex-nortura --non-interactive
+
       - name: Deploy Firebase Functions
         run: firebase deploy --only functions --project opex-nortura --non-interactive
