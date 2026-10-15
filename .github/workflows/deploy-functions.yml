@@ -9,6 +9,7 @@ on:
       - "functions/**"
       - "firebase.json"
       - ".firebaserc"
+      - ".github/workflows/deploy-functions.yml"
 
 permissions:
   contents: read
