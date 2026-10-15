@@ -25,7 +25,7 @@ async function buildSaksgrunnlag(db, sakId) {
   for (const [id, obj] of entries(spor)) add('SP:'+id,'spor',pick(obj,['kode','sporsmal','rekkefolge']));
   for (const [id, obj] of entries(arsaker)) add('A:'+id,'arsak',pick(obj,['tekst','status','grunnlag','vurdertAt','vurdertAv','fjernet','erstatter','sporId']));
   for (const [id, obj] of entries(hendelser)) add('SE:'+id,'sakshendelse',pick(obj,['type','createdAt','actorUid','entityId','felt','foer','etter']));
-  for (const [id, obj] of entries(journal)) add('J:'+id,'journal',pick(obj,['type','tekst','gjelderDato','opprettetAt','opprettetAv','fjernet','erstatter','koblinger']));
+  for (const [id, obj] of entries(journal)) add('J:'+id,'journal',pick(obj,['type','tekst','gjelderDato','opprettetAt','opprettetAv','fjernet','erstatter','erstattetAv','korrigertAt','korrigertAv','begrunnelse','koblinger']));
   let memberCount=0;
   for (const [id, task] of entries(tiltak)) {
     if (!task || task.sakId !== sakId) continue;

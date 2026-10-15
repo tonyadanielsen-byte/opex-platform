@@ -12,7 +12,7 @@ const hasDeps = fs.existsSync(path.join(fnDir, 'node_modules', 'firebase-functio
 const skip = !hasDeps && 'functions/node_modules mangler';
 
 const NYE = ['createSakV1', 'getSakerV1', 'getSakV1', 'updateSakV1', 'setTiltakSakV1', 'removeTiltakSakV1', 'createArsakV1', 'updateArsakV1', 'createSporV1', 'deleteSakV1'];
-const GRUNNLAG = ['getSaksgrunnlagV1','getSakJournalV1','createSakJournalEntryV1'];
+const GRUNNLAG = ['getSaksgrunnlagV1','getSakJournalV1','createSakJournalEntryV1', 'reviseSakJournalEntryV1'];
 const FRA_1A = ['logTiltakEventsV1', 'logTaskCommentEventV1'];
 const EKSISTERENDE = [
   'notifyNewTaskV1C', 'notifyTaskChangesV1C', 'notifyTaskCommentV1', 'notifyDeadlinesV1C',
@@ -33,7 +33,7 @@ test('alle 10 sak-funksjoner er callables i europe-west1 med lav maxInstances', 
   }
 });
 
-test('entry.js eksporterer nøyaktig: 13 eksisterende + 2 fra 1a + 10 sak + 3 journal/grunnlag = 28 funksjoner', { skip }, () => {
+test('entry.js eksporterer nøyaktig: 13 eksisterende + 2 fra 1a + 10 sak + 4 journal/grunnlag = 29 funksjoner', { skip }, () => {
   const entry = require(path.join(fnDir, 'entry.js'));
   for (const name of [...EKSISTERENDE, ...FRA_1A, ...NYE]) assert.equal(typeof entry[name], 'function', `${name} mangler`);
   assert.deepEqual(Object.keys(entry).sort(), [...EKSISTERENDE, ...FRA_1A, ...NYE, ...GRUNNLAG].sort());
