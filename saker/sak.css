@@ -322,3 +322,8 @@ body[data-appearance="dark"] .sak-btn-primary { color: #fff; }
 #saker .sak-journal-form select, #saker .sak-journal-form textarea { width: 100%; max-width: 100%; padding: 0.6rem; border-radius: 8px; border: 1px solid var(--sak-line, #aaa); background: transparent; color: inherit; font: inherit; }
 #saker .sak-journal-poster { padding: 0; list-style: none; }
 #saker .sak-journal-poster li { margin: 0.5rem 0; }
+
+#saker .sak-journal-form[hidden], #saker .sak-journal-form [hidden] { display: none !important; }
+#saker .sak-journal-form { margin-top: 0.75rem; }
+#saker .sak-journal-history { margin-top: 0.6rem; }
+#saker .sak-journal-poster > li { padding: 0.8rem; }
