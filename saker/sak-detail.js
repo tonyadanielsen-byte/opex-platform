@@ -213,9 +213,11 @@
   /* ------------------------------------------------------------------ enkel saksjournal */
   function journalPanel(m) {
     var panel = h('details', { class: 'sak-journal' });
-    var title = h('summary', null, [U.icon('book-open', 18), ' Saksjournal · observasjoner, undersøkelser og beslutninger']);
+    panel.appendChild(h('summary', null, [U.icon('book-open', 18), ' Saksjournal · observasjoner, undersøkelser og beslutninger']));
     var content = h('div', { class: 'sak-card' });
     var output = h('div', { role: 'status', class: 'sak-muted' }, 'Åpne journalen for å hente registreringer.');
+    var list = h('ul', { class: 'sak-journal-poster' });
+    var form = h('div', { class: 'sak-journal-form', hidden: true });
     var type = h('select', { 'aria-label': 'Type journalpost' }, [
       h('option', { value: 'observasjon' }, 'Observasjon'),
       h('option', { value: 'undersokelse' }, 'Undersøkelse'),
@@ -224,39 +226,91 @@
       h('option', { value: 'effektmaling' }, 'Effektmåling'),
     ]);
     var input = h('textarea', { rows: 3, maxlength: 3000, placeholder: 'Beskriv hva som er observert, undersøkt eller besluttet …', 'aria-label': 'Journaltekst' });
-    var save = U.button('Registrer', { icon: 'plus', variant: 'secondary', on: { click: async function () {
-      var text = input.value.trim();
-      if (!text) { output.textContent = 'Skriv en tekst før du registrerer.'; return; }
-      save.disabled = true;
+    var reason = h('textarea', { rows: 2, maxlength: 500, placeholder: 'Hva korrigeres og hvorfor?', 'aria-label': 'Begrunnelse for korrigering', hidden: true });
+    var current = null;
+    var editHeading = h('b', null, 'Ny journalpost');
+    var submit = U.button('Registrer', { icon: 'plus', variant: 'secondary', on: { click: async function () {
+      var tekst = input.value.trim();
+      if (!tekst) { output.textContent = 'Skriv en tekst før du registrerer.'; return; }
+      if (current && !reason.value.trim()) { output.textContent = 'Oppgi hvorfor posten korrigeres.'; return; }
+      submit.disabled = true;
       try {
-        await root.OpExSakStore.call('createSakJournalEntryV1', { sakId: m.sak.sakId, type: type.value, tekst: text });
-        input.value = '';
+        if (current) {
+          await root.OpExSakStore.call('reviseSakJournalEntryV1', {
+            sakId: m.sak.sakId, entryId: current.id, tekst: tekst, begrunnelse: reason.value.trim()
+          });
+        } else {
+          await root.OpExSakStore.call('createSakJournalEntryV1', { sakId: m.sak.sakId, type: type.value, tekst: tekst });
+        }
+        hideForm();
         await load();
-      } catch (error) { output.textContent = (error && error.message) || 'Kunne ikke registrere journalpost.'; }
-      finally { save.disabled = false; }
+      } catch (error) { output.textContent = (error && error.message) || 'Kunne ikke lagre journalposten.'; }
+      finally { submit.disabled = false; }
     } } });
-    var list = h('ul', { class: 'sak-journal-poster' });
+    function hideForm() {
+      form.hidden = true; current = null; input.value = ''; reason.value = ''; reason.hidden = true;
+      type.disabled = false; submit.textContent = 'Registrer';
+    }
+    function showForm(post) {
+      current = post || null; form.hidden = false;
+      input.value = post ? post.tekst || '' : '';
+      reason.value = ''; reason.hidden = !post;
+      type.value = post ? post.type : 'observasjon'; type.disabled = !!post;
+      editHeading.textContent = post ? 'Korriger journalpost' : 'Ny journalpost';
+      submit.textContent = post ? 'Lagre korrigering' : 'Registrer';
+      input.focus();
+    }
+    var newButton = U.button('+ Ny journalpost', { variant: 'secondary', on: { click: function () { showForm(null); } } });
+    var cancelButton = U.button('Avbryt', { variant: 'ghost', on: { click: hideForm } });
+    form.appendChild(editHeading);
+    form.appendChild(type);
+    form.appendChild(input);
+    form.appendChild(reason);
+    form.appendChild(h('div', null, [submit, cancelButton]));
     async function load() {
       output.textContent = 'Henter journalen …';
       try {
         var result = await root.OpExSakStore.call('getSakJournalV1', { sakId: m.sak.sakId });
-        var poster = (result && result.poster || []).filter(function (p) { return !p.fjernet; });
+        var posts = result && result.poster || [];
         list.textContent = '';
-        poster.forEach(function (p) {
-          var label = { observasjon:'Observasjon', undersokelse:'Undersøkelse', beslutning:'Beslutning', dokumentasjon:'Dokumentasjon', effektmaling:'Effektmåling' }[p.type] || 'Journal';
-          list.appendChild(h('li', { class: 'sak-card' }, [
-            h('b', null, label),
+        posts.filter(function (p) { return !p.fjernet && !p.erstattetAv; }).reverse().forEach(function (p) {
+          var labels = { observasjon:'Observasjon', undersokelse:'Undersøkelse', beslutning:'Beslutning', dokumentasjon:'Dokumentasjon', effektmaling:'Effektmåling' };
+          var chain = [], cursor = p, seen = {};
+          while (cursor && cursor.erstatter && !seen[cursor.erstatter]) {
+            seen[cursor.erstatter] = true;
+            var previous = posts.find(function (x) { return x.id === cursor.erstatter; });
+            if (!previous) break;
+            chain.push(previous); cursor = previous;
+          }
+          var details = chain.length ? h('details', { class: 'sak-journal-history' }, [
+            h('summary', null, 'Vis tidligere versjoner (' + chain.length + ')'),
+            h('ul', null, chain.map(function (old) {
+              return h('li', null, [
+                h('p', null, old.tekst || ''),
+                h('small', null, [old.opprettetAt ? U.fmtDato(old.opprettetAt, m.idag) : '',
+                  ' · ', (root.OpExHost && root.OpExHost.nameOf && root.OpExHost.nameOf(old.opprettetAv)) || 'Ukjent bruker'].join(''))
+              ]);
+            }))
+          ]) : null;
+          var li = h('li', { class: 'sak-card' }, [
+            h('b', null, labels[p.type] || 'Journal'),
             h('p', null, p.tekst || ''),
-            h('small', { class: 'sak-muted' }, [(p.opprettetAt ? U.fmtDato(p.opprettetAt, m.idag) : ''), ' · ', ((root.OpExHost && root.OpExHost.nameOf && root.OpExHost.nameOf(p.opprettetAv)) || 'Ukjent bruker')].join('')),
-          ]));
+            h('small', { class: 'sak-muted' }, [
+              p.opprettetAt ? new Date(p.opprettetAt).toLocaleString('nb-NO', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Oslo' }) : '',
+              ' · ', ((root.OpExHost && root.OpExHost.nameOf && root.OpExHost.nameOf(p.opprettetAv)) || 'Ukjent bruker'),
+              p.erstatter ? ' · Korrigert' : ''
+            ].join('')),
+            p.begrunnelse ? h('p', { class: 'sak-muted' }, 'Korrigering: ' + p.begrunnelse) : null,
+            details,
+            !m.sak.lukket ? U.button('Korriger', { small: true, variant: 'ghost', on: { click: function () { showForm(p); } } }) : null
+          ]);
+          list.appendChild(li);
         });
-        output.textContent = poster.length ? poster.length + ' registreringer i journalen.' : 'Ingen journalposter ennå.';
+        output.textContent = posts.filter(function (p) { return !p.fjernet && !p.erstattetAv; }).length + ' aktive journalposter.';
       } catch (error) { output.textContent = (error && error.message) || 'Kunne ikke hente journalen.'; }
     }
-    panel.appendChild(title);
-    content.appendChild(output);
-    content.appendChild(list);
-    if (!m.sak.lukket) content.appendChild(h('div', { class: 'sak-journal-form' }, [type, input, save]));
+    content.appendChild(output); content.appendChild(list);
+    if (!m.sak.lukket) { content.appendChild(newButton); content.appendChild(form); }
     panel.appendChild(content);
     panel.addEventListener('toggle', function () { if (panel.open) load(); });
     return panel;
