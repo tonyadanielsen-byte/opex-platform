@@ -39,6 +39,14 @@ describe('RTDB access against real Firebase Emulator', () => {
     await assertSucceeds(a.ref('lor/example').set({ status: 'planlagt' }));
     await assertSucceeds(b.ref('lor/example/status').set('gjennomfort'));
   });
+  it('protects the entire tiltak collection while allowing individual measure updates', async () => {
+    const a = env.authenticatedContext(leader).database();
+    await assertFails(a.ref('tiltak').remove());
+    await assertFails(a.ref('tiltak').set({ replaced: { tittel: 'Overwriting all' } }));
+    await assertSucceeds(a.ref('tiltak/measure-1').set({ tittel: 'Independent measure' }));
+    await assertSucceeds(a.ref('tiltak/measure-1/status').set('Fullført'));
+    await assertSucceeds(a.ref('tiltak/measure-1').remove());
+  });
   it('blocks direct client writes to case, events, counters and user permissions', async () => {
     const db = env.authenticatedContext(leader).database();
     for (const key of ['saker/new', 'sakEvents/new/event', 'sakSpor/new/track', 'sakAdmins/new', 'counters/sak', 'authorizedUsers/outsider']) {
