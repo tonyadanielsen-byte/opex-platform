@@ -1553,9 +1553,9 @@ function commitBulkImport(){
   if(!good.length)return toast('Ingen validerte tiltak å importere',true);
   if(!confirm('Importere '+good.length+' nye tiltak til produksjonsdatabasen?'))return;
   let updates={};
-  good.forEach(x=>{let key=ref.push().key;updates[key]=x.task});
+  good.forEach(x=>{let key=ref.push().key;updates['tiltak/'+key]=x.task});
   document.getElementById('bulkImportCommit').disabled=true;
-  ref.update(updates).then(()=>{toast(good.length+' tiltak importert ✓');clearBulkImport();renderAllViews()}).catch(e=>{document.getElementById('bulkImportCommit').disabled=false;toast('Importfeil: '+e.message,true)});
+  db.ref().update(updates).then(()=>{toast(good.length+' tiltak importert ✓');clearBulkImport();renderAllViews()}).catch(e=>{document.getElementById('bulkImportCommit').disabled=false;toast('Importfeil: '+e.message,true)});
 }
 function clearBulkImport(){
   bulkImportValidated=[];
