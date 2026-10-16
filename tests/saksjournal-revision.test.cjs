@@ -8,12 +8,12 @@ const file=path.join(__dirname,'..','functions','saksgrunnlag-api.js');
 test('journal revision callable delegates to atomic revision core and validates permissions',()=>{
   const src=fs.readFileSync(file,'utf8');
   const core=fs.readFileSync(path.join(__dirname,'..','functions','saksjournal-revision-core.js'),'utf8');
-  assert.match(src,/exports\\.reviseSakJournalEntryV1\\s*=\\s*onCall/);
-  assert.match(src,/await auth\\(request\\)/);
-  assert.match(src,/activeSak\\(db,sakId,true\\)/);
-  assert.match(src,/!begrunnelse\\.trim\\(\\)/);
-  assert.match(src,/reviseJournal\\(/);
-  assert.match(core,/journalRef\\.transaction\\(/);
+  assert.match(src,/exports\.reviseSakJournalEntryV1\s*=\s*onCall/);
+  assert.match(src,/await auth\(request\)/);
+  assert.match(src,/activeSak\(db,sakId,true\)/);
+  assert.match(src,/!begrunnelse\.trim\(\)/);
+  assert.match(src,/reviseJournal\(/);
+  assert.match(core,/journalRef\.transaction\(/);
   assert.match(core,/journal_korrigert/);
 });
 test('AI evidence includes active journal revision and original evidence with stable source IDs',async()=>{
