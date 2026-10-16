@@ -1,7 +1,7 @@
 'use strict';
 // Journal revision write path, testable with an injected database.
 class RevisionError extends Error { constructor(code,message){super(message);this.code=code;} }
-const fail=(code,message)=>{throw new RevisionError(code,message);};
+const {eventKey}=require('./events-core');
 async function reviseJournal({db,sakId,entryId,uid,tekst,begrunnelse,now=new Date().toISOString()}) {
   const journalRef=db.ref('/sakJournal/'+sakId);
   const old=(await journalRef.child(entryId).get()).val();
@@ -30,8 +30,8 @@ async function reviseJournal({db,sakId,entryId,uid,tekst,begrunnelse,now=new Dat
     throw new RevisionError('aborted','Journalposten ble korrigert av noen andre. Oppdater og prøv igjen.');
 
   // The journal is already consistent if event recording fails. The deterministic
-  // event key enables a safe retry without adding duplicate history events.
-  const eventId='journal_korrigert_'+newId;
+  // event key keeps chronological ordering alongside other case events.
+  const eventId=eventKey(Date.parse(now),newId,'journal-korrigert');
   try{
     await db.ref('/sakEvents/'+sakId+'/'+eventId).set({
       type:'journal_korrigert',entityId:newId,actorUid:uid,createdAt:now,erstatter:entryId
