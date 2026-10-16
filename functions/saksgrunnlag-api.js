@@ -12,12 +12,12 @@ async function auth(request) {
     throw new HttpsError('permission-denied','Ikke godkjent bruker.');
   return uid;
 }
-async function activeSak(db,sakId) {
+async function activeSak(db,sakId,writable=false) {
   if (!validId(sakId)) throw new HttpsError('invalid-argument','Ugyldig sak.');
   const s=(await db.ref('/saker/'+sakId).get()).val();
   if (!s || s.deletedAt || s.slettetAt || s.slettet===true)
     throw new HttpsError('not-found','Saken finnes ikke.');
-  if (s.status === 'Lukket') throw new HttpsError('failed-precondition','Saken er lukket. Åpne den på nytt (endre status) før du endrer innholdet.');
+  if (writable && s.status === 'Lukket') throw new HttpsError('failed-precondition','Saken er lukket. Åpne den på nytt (endre status) før du endrer innholdet.');
 }
 exports.getSaksgrunnlagV1=onCall(OPTIONS,async request=>{
   await auth(request);
@@ -41,7 +41,7 @@ exports.createSakJournalEntryV1=onCall(OPTIONS,async request=>{
   if(Object.keys(data).some(k=>!['sakId','type','tekst','gjelderDato'].includes(k)))
     throw new HttpsError('invalid-argument','Ukjent felt.');
   const {sakId,type,tekst,gjelderDato}=data;
-  const db=getDatabase();await activeSak(db,sakId);
+  const db=getDatabase();await activeSak(db,sakId,true);
   if(!TYPES.has(type))throw new HttpsError('invalid-argument','Ugyldig type.');
   if(typeof tekst!=='string'||!tekst.trim()||tekst.trim().length>3000)
     throw new HttpsError('invalid-argument','Tekst må være mellom 1 og 3000 tegn.');
@@ -63,7 +63,7 @@ exports.reviseSakJournalEntryV1=onCall(OPTIONS,async request=>{
   if(Object.keys(data).some(k=>!['sakId','entryId','tekst','begrunnelse'].includes(k)))
     throw new HttpsError('invalid-argument','Ukjent felt.');
   const {sakId,entryId,tekst,begrunnelse}=data, db=getDatabase();
-  await activeSak(db,sakId);
+  await activeSak(db,sakId,true);
   if(!validId(entryId))throw new HttpsError('invalid-argument','Ugyldig journalpost.');
   if(typeof tekst!=='string'||!tekst.trim()||tekst.trim().length>3000)
     throw new HttpsError('invalid-argument','Korrigert tekst må være mellom 1 og 3000 tegn.');
