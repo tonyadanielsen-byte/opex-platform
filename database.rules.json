@@ -4,7 +4,9 @@
     ".write": false,
     "tiltak": {
       ".read": "auth != null && root.child('authorizedUsers').child(auth.uid).val() === true",
-      ".write": "auth != null && root.child('authorizedUsers').child(auth.uid).val() === true"
+      "$tiltakId": {
+        ".write": "auth != null && root.child('authorizedUsers').child(auth.uid).val() === true"
+      }
     },
     "lor": {
       ".read": "auth != null && root.child('authorizedUsers').child(auth.uid).val() === true",
