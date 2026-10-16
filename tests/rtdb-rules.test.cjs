@@ -10,11 +10,12 @@ test('RTDB: root defaults to deny for read and write', () => {
   assert.equal(rules['.read'], false);
   assert.equal(rules['.write'], false);
 });
-test('RTDB: measures and LOR require authorized accounts for both operations', () => {
-  for (const section of ['tiltak', 'lor']) {
-    assert.equal(rules[section]['.read'], authorized);
-    assert.equal(rules[section]['.write'], authorized);
-  }
+test('RTDB: full measure collection cannot be overwritten; individual measures remain writable', () => {
+  assert.equal(rules.tiltak['.read'],authorized);
+  assert.equal(Object.hasOwn(rules.tiltak,'.write'),false);
+  assert.equal(rules.tiltak.$tiltakId['.write'],authorized);
+  assert.equal(rules.lor['.read'],authorized);
+  assert.equal(rules.lor['.write'],authorized);
 });
 test('RTDB: authorizedUsers is readable only by own uid and not writable from client', () => {
   assert.equal(rules.authorizedUsers.$uid['.read'], 'auth != null && auth.uid === $uid');
