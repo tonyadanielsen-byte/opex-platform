@@ -47,6 +47,25 @@ describe('RTDB access against real Firebase Emulator', () => {
     await assertSucceeds(a.ref('tiltak/measure-1/status').set('Fullført'));
     await assertSucceeds(a.ref('tiltak/measure-1').remove());
   });
+  it('supports atomic multipath bulk import under per-measure rules', async () => {
+    const db = env.authenticatedContext(leader).database();
+    const before = await db.ref('tiltak').get();
+    const beforeCount = Object.keys(before.val() || {}).length;
+    await assertSucceeds(db.ref().update({
+      'tiltak/import-test-a': {tittel:'Import A',miljo:'Test'},
+      'tiltak/import-test-b': {tittel:'Import B',miljo:'Test'},
+    }));
+    const both = await db.ref('tiltak').get();
+    assert.equal(Object.keys(both.val() || {}).length, beforeCount + 2);
+    assert.equal(both.child('import-test-a/tittel').val(), 'Import A');
+    assert.equal(both.child('import-test-b/tittel').val(), 'Import B');
+    // RTDB authorizes each child path in a multipath update, even when
+    // update() is called on the collection ref. Root set/remove remain denied.
+    await assertSucceeds(db.ref('tiltak').update({
+      'legacy-multipath': {tittel:'Legacy child update'},
+    }));
+    await assertFails(db.ref('tiltak').remove());
+  });
   it('blocks direct client writes to case, events, counters and user permissions', async () => {
     const db = env.authenticatedContext(leader).database();
     for (const key of ['saker/new', 'sakEvents/new/event', 'sakSpor/new/track', 'sakAdmins/new', 'counters/sak', 'authorizedUsers/outsider']) {
