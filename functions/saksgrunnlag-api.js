@@ -17,6 +17,7 @@ async function activeSak(db,sakId) {
   const s=(await db.ref('/saker/'+sakId).get()).val();
   if (!s || s.deletedAt || s.slettetAt || s.slettet===true)
     throw new HttpsError('not-found','Saken finnes ikke.');
+  if (s.status === 'Lukket') throw new HttpsError('failed-precondition','Saken er lukket. Åpne den på nytt (endre status) før du endrer innholdet.');
 }
 exports.getSaksgrunnlagV1=onCall(OPTIONS,async request=>{
   await auth(request);
@@ -68,30 +69,42 @@ exports.reviseSakJournalEntryV1=onCall(OPTIONS,async request=>{
     throw new HttpsError('invalid-argument','Korrigert tekst må være mellom 1 og 3000 tegn.');
   if(typeof begrunnelse!=='string'||!begrunnelse.trim()||begrunnelse.trim().length>500)
     throw new HttpsError('invalid-argument','Oppgi en kort begrunnelse for korrigeringen (maks 500 tegn).');
-  const oldRef=db.ref('/sakJournal/'+sakId+'/'+entryId);
-  const old=(await oldRef.get()).val();
+  const journalRef=db.ref('/sakJournal/'+sakId);
+  const old=(await journalRef.child(entryId).get()).val();
   if(!old)throw new HttpsError('not-found','Journalposten finnes ikke.');
   if(old.fjernet||old.erstattetAv)throw new HttpsError('failed-precondition','Journalposten er allerede erstattet.');
-  const now=new Date().toISOString(), newRef=db.ref('/sakJournal/'+sakId).push(), eventId=db.ref('/sakEvents/'+sakId).push().key;
+  const now=new Date().toISOString(), newId=journalRef.push().key;
   const revised={type:old.type,tekst:tekst.trim(),opprettetAv:uid,opprettetAt:now,fjernet:false,erstatter:entryId,begrunnelse:begrunnelse.trim()};
   if(old.gjelderDato)revised.gjelderDato=old.gjelderDato;
-  // Transactional claim on old post prevents two parallel revisions from branching.
-  const claimed=await oldRef.transaction(current=>{
-    if(!current||current.fjernet||current.erstattetAv)return;
-    return {...current,fjernet:true,erstattetAv:newRef.key,korrigertAt:now,korrigertAv:uid};
+
+  // Old and new journal versions must commit together: never leave a dangling replacement.
+  // RTDB calls the updater once with a cold local cache (often null). Returning null
+  // permits the SDK to fetch server state and retry instead of aborting with undefined.
+  const tx=await journalRef.transaction(current=>{
+    if(current===null)return null;
+    if(typeof current!=='object'||Array.isArray(current))return;
+    const original=current[entryId];
+    if(!original||original.fjernet||original.erstattetAv||current[newId])return;
+    return {
+      ...current,
+      [entryId]:{...original,fjernet:true,erstattetAv:newId,korrigertAt:now,korrigertAv:uid},
+      [newId]:revised
+    };
   },undefined,false);
-  if(!claimed.committed)throw new HttpsError('aborted','Journalposten ble korrigert av noen andre. Oppdater og prøv igjen.');
+  const committed=tx.snapshot?.val();
+  if(!tx.committed||!committed?.[newId]||committed?.[entryId]?.erstattetAv!==newId)
+    throw new HttpsError('aborted','Journalposten ble korrigert av noen andre. Oppdater og prøv igjen.');
+
+  // The journal is already consistent if event recording fails. The deterministic
+  // event key enables a safe retry without adding duplicate history events.
+  const eventId='journal_korrigert_'+newId;
   try{
-    await db.ref().update({
-      ['/sakJournal/'+sakId+'/'+newRef.key]:revised,
-      ['/sakEvents/'+sakId+'/'+eventId]:{type:'journal_korrigert',entityId:newRef.key,actorUid:uid,createdAt:now,erstatter:entryId}
+    await db.ref('/sakEvents/'+sakId+'/'+eventId).set({
+      type:'journal_korrigert',entityId:newId,actorUid:uid,createdAt:now,erstatter:entryId
     });
   }catch(error){
-    // Never overwrite concurrent work: only roll back our own claim.
-    await oldRef.transaction(current=>current&&current.erstattetAv===newRef.key?{
-      ...current,fjernet:false,erstattetAv:null,korrigertAt:null,korrigertAv:null
-    }:undefined,undefined,false);
-    throw new HttpsError('internal','Korrigeringen kunne ikke lagres. Prøv igjen.');
+    // Never roll back a committed journal revision to compensate for an event failure.
+    throw new HttpsError('internal','Korrigeringen er lagret, men aktivitetsloggen kunne ikke oppdateres. Kontakt ansvarlig før du prøver igjen.');
   }
-  return {id:newRef.key,erstatter:entryId,post:revised};
+  return {id:newId,erstatter:entryId,post:revised};
 });
