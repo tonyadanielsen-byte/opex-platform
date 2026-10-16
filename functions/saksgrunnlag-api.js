@@ -4,6 +4,7 @@ const {getApps, initializeApp} = require('firebase-admin/app');
 const {getDatabase} = require('firebase-admin/database');
 const {buildSaksgrunnlag,validId} = require('./saksgrunnlag-core');
 const {reviseJournal,RevisionError} = require('./saksjournal-revision-core');
+const {eventKey} = require('./events-core');
 if (!getApps().length) initializeApp();
 const OPTIONS={region:'europe-west1',memory:'256MiB',timeoutSeconds:60,maxInstances:2};
 const TYPES=new Set(['observasjon','undersokelse','beslutning','dokumentasjon','effektmaling']);
@@ -51,7 +52,7 @@ exports.createSakJournalEntryV1=onCall(OPTIONS,async request=>{
   const id=db.ref('/sakJournal/'+sakId).push().key, now=new Date().toISOString();
   const post={type,tekst:tekst.trim(),opprettetAv:uid,opprettetAt:now,fjernet:false};
   if(gjelderDato)post.gjelderDato=gjelderDato;
-  const eventId=db.ref('/sakEvents/'+sakId).push().key;
+  const eventId=eventKey(Date.parse(now),id,'journal-opprettet');
   await db.ref().update({
     ['/sakJournal/'+sakId+'/'+id]:post,
     ['/sakEvents/'+sakId+'/'+eventId]:{type:'journal_opprettet',entityId:id,actorUid:uid,createdAt:now}
