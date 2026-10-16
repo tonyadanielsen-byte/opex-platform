@@ -16,7 +16,11 @@ test('cold cache: corrected revision commits original and replacement atomically
  assert.equal(d.at('/sakJournal/s1/'+r.id).tekst,'Rettet');
  assert.equal(d.at('/sakJournal/s1/j1').tekst,'Opprinnelig');
  assert.equal(Object.values(d.at('/sakJournal/s1')).filter(v=>!v.fjernet&&!v.erstattetAv).length,1);
- assert.equal(d.at('/sakEvents/s1/journal_korrigert_'+r.id).type,'journal_korrigert');
+ const events=d.at('/sakEvents/s1');
+ assert.equal(Object.keys(events).length,1);
+ const key=Object.keys(events)[0];
+ assert.match(key,/^\d{13}-/);
+ assert.equal(events[key].type,'journal_korrigert');
 });
 test('ten competing revisions produce one winner and one active revision',async()=>{
  const d=db();
