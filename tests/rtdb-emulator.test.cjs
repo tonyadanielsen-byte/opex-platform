@@ -59,9 +59,12 @@ describe('RTDB access against real Firebase Emulator', () => {
     assert.equal(Object.keys(both.val() || {}).length, beforeCount + 2);
     assert.equal(both.child('import-test-a/tittel').val(), 'Import A');
     assert.equal(both.child('import-test-b/tittel').val(), 'Import B');
-    await assertFails(db.ref('tiltak').update({
-      'whole-root-denied': {tittel:'Legacy bulk import'},
+    // RTDB authorizes each child path in a multipath update, even when
+    // update() is called on the collection ref. Root set/remove remain denied.
+    await assertSucceeds(db.ref('tiltak').update({
+      'legacy-multipath': {tittel:'Legacy child update'},
     }));
+    await assertFails(db.ref('tiltak').remove());
   });
   it('blocks direct client writes to case, events, counters and user permissions', async () => {
     const db = env.authenticatedContext(leader).database();
