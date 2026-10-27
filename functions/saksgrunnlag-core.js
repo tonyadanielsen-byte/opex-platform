@@ -15,8 +15,12 @@ async function buildSaksgrunnlag(db, sakId) {
   const read = async path => (await db.ref(path).get()).val() || {};
   const sak = await read('/saker/' + sakId);
   if (!sak || !sak.sakId || sak.deletedAt || sak.slettetAt || sak.slettet === true) throw new Error('Saken finnes ikke');
+  const tiltakRef = db.ref('/tiltak');
+  const matchingTiltak = typeof tiltakRef.orderByChild === 'function'
+    ? tiltakRef.orderByChild('sakId').equalTo(sakId).get()
+    : tiltakRef.get(); // Isolated legacy test doubles do not implement RTDB queries.
   const [tiltak, spor, arsaker, hendelser, journal] = await Promise.all([
-    (await db.ref('/tiltak').orderByChild('sakId').equalTo(sakId).get()).val() || {}, read('/sakSpor/'+sakId), read('/sakArsaker/'+sakId), read('/sakEvents/'+sakId),
+    matchingTiltak.then(snapshot => snapshot.val() || {}), read('/sakSpor/'+sakId), read('/sakArsaker/'+sakId), read('/sakEvents/'+sakId),
     read('/sakJournal/'+sakId),
   ]);
   const sources = [];
