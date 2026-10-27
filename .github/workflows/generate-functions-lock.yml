@@ -1,0 +1,32 @@
+name: Generate Functions dependency lockfile (temporary)
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/generate-functions-lock.yml"
+permissions:
+  contents: write
+jobs:
+  lockfile:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'chore/final-deploy-stabilization'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate lockfile with npm registry
+        working-directory: functions
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit lockfile to this PR branch only
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add functions/package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Lock Firebase Functions npm dependency tree"
+            git push origin HEAD:chore/final-deploy-stabilization
+          fi
