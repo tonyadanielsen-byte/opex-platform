@@ -327,3 +327,12 @@ body[data-appearance="dark"] .sak-btn-primary { color: #fff; }
 #saker .sak-journal-form { margin-top: 0.75rem; }
 #saker .sak-journal-history { margin-top: 0.6rem; }
 #saker .sak-journal-poster > li { padding: 0.8rem; }
+
+/* Saksgrunnlag v2: quiet, scan-friendly source evidence. */
+.sak-ledergrunnlag .sak-grunnlag-innhold{display:grid;gap:16px}
+.sak-grunnlag-gruppe{border-top:1px solid var(--sak-border,#dedbd4);padding-top:12px}
+.sak-grunnlag-gruppe h3{margin:0 0 6px;font-size:1rem}
+.sak-grunnlag-gruppe .sak-journal-poster{margin:8px 0;padding-left:20px}
+.sak-grunnlag-kilde{margin-bottom:9px;overflow-wrap:anywhere}
+.sak-grunnlag-kilde b,.sak-grunnlag-kilde small{display:block}
+.sak-ledergrunnlag .sak-muted{overflow-wrap:anywhere}
