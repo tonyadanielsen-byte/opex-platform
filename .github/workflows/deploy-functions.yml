@@ -33,7 +33,7 @@ jobs:
           java-version: "21"
       - name: Install test dependencies
         run: |
-          npm install --prefix functions --no-audit --no-fund
+          npm ci --prefix functions --no-audit --no-fund
           npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1 @firebase/rules-unit-testing@4.0.1 firebase@11.10.0 firebase-tools@14.17.0
           npx playwright install --with-deps chromium
       - name: Full Saker regression suite
@@ -55,37 +55,16 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: functions/package.json
+          cache-dependency-path: functions/package-lock.json
 
       - name: Install function dependencies
         working-directory: functions
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_OPEX_NORTURA }}
-
-      - name: Verify deployment identity (email only)
-        shell: bash
-        run: |
-          set -euo pipefail
-          node - <<'NODE'
-          const fs = require('node:fs');
-          const credentialFile = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-          if (!credentialFile) {
-            console.error('No GOOGLE_APPLICATION_CREDENTIALS provided');
-            process.exitCode = 1;
-          } else {
-            const { client_email } = JSON.parse(fs.readFileSync(credentialFile, 'utf8'));
-            if (!client_email || !client_email.endsWith('.gserviceaccount.com')) {
-              console.error('No service account email available');
-              process.exitCode = 1;
-            } else {
-              console.log('Firebase deploy service account: ' + client_email);
-            }
-          }
-          NODE
 
       - name: Install Firebase CLI
         run: npm install --global firebase-tools@14.17.0
