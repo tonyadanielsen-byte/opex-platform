@@ -3,6 +3,7 @@ const {onCall, HttpsError} = require('firebase-functions/v2/https');
 const {getApps, initializeApp} = require('firebase-admin/app');
 const {getDatabase} = require('firebase-admin/database');
 const {buildSaksgrunnlag,validId} = require('./saksgrunnlag-core');
+const {buildSaksgrunnlagV2} = require('./saksgrunnlag-v2-core');
 const {reviseJournal,RevisionError} = require('./saksjournal-revision-core');
 const {eventKey} = require('./events-core');
 if (!getApps().length) initializeApp();
@@ -29,6 +30,15 @@ exports.getSaksgrunnlagV1=onCall(OPTIONS,async request=>{
   await activeSak(db,request.data?.sakId);
   // Raw source bundle is limited to approved authenticated leaders, never sent to an external model.
   return await buildSaksgrunnlag(db,request.data.sakId);
+});
+// Read-only V2 projection. Same approved-user gate as V1; no AI and no writes.
+exports.getSaksgrunnlagV2=onCall(OPTIONS,async request=>{
+  await auth(request);
+  const keys=Object.keys(request.data||{});
+  if(keys.some(k=>k!=='sakId')) throw new HttpsError('invalid-argument','Ukjent felt.');
+  const db=getDatabase();
+  await activeSak(db,request.data?.sakId);
+  return await buildSaksgrunnlagV2(db,request.data.sakId);
 });
 exports.getSakJournalV1=onCall(OPTIONS,async request=>{
   await auth(request);
