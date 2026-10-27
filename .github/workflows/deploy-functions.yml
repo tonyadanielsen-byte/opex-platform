@@ -66,6 +66,27 @@ jobs:
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_OPEX_NORTURA }}
 
+      - name: Verify deployment identity (email only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const credentialFile = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+          if (!credentialFile) {
+            console.error('No GOOGLE_APPLICATION_CREDENTIALS provided');
+            process.exitCode = 1;
+          } else {
+            const { client_email } = JSON.parse(fs.readFileSync(credentialFile, 'utf8'));
+            if (!client_email || !client_email.endsWith('.gserviceaccount.com')) {
+              console.error('No service account email available');
+              process.exitCode = 1;
+            } else {
+              console.log('Firebase deploy service account: ' + client_email);
+            }
+          }
+          NODE
+
       - name: Install Firebase CLI
         run: npm install --global firebase-tools@14.17.0
 
