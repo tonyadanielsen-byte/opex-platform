@@ -210,6 +210,77 @@
   }
 
 
+
+  /* Source-grounded leader view. Lazy-loaded, read-only and safe for untrusted text. */
+  function saksgrunnlagPanel(m) {
+    var panel=h('details',{class:'sak-journal sak-ledergrunnlag'});
+    panel.appendChild(h('summary',null,[U.icon('file-text',18),' Saksgrunnlag · dokumentert status og historikk']));
+    var content=h('div',{class:'sak-card sak-grunnlag-innhold'});
+    var status=h('p',{class:'sak-muted',role:'status'},'Åpne for å hente oppdatert saksgrunnlag.');
+    content.appendChild(status);
+    panel.appendChild(content);
+    var requestNumber=0;
+    function renderBasis(result) {
+      content.textContent='';
+      var basis=result&&result.basis, overview=result&&result.oversikt;
+      if(!basis||!overview||!Array.isArray(basis.sources)||!Array.isArray(overview.sources)) throw new Error('Ugyldig svar fra saksgrunnlaget.');
+      var byId={};
+      basis.sources.forEach(function(s){byId[s.id]=s;});
+      var current=overview.sources.filter(function(s){return s.status==='gjeldende';});
+      var uncertain=overview.sources.filter(function(s){return s.status==='hypotese';});
+      var outdated=overview.sources.filter(function(s){return s.status==='erstattet'||s.status==='avkreftet_eller_fjernet';});
+      function item(s) {
+        var source=byId[s.id]||{}, data=source.data||{};
+        var title=data.tekst||data.tittel||data.sporsmal||data.beskrivelse||data.type||s.type;
+        var meta=s.id+' · '+s.status.replace(/_/g,' ') +(s.tidspunkt?' · '+s.tidspunkt:'');
+        return h('li',{class:'sak-grunnlag-kilde'},[
+          h('b',null,String(title).slice(0,500)),
+          h('small',{class:'sak-muted'},meta),
+          s.koblinger&&s.koblinger.length?h('small',{class:'sak-muted'},'Koblinger: '+s.koblinger.map(function(k){return k.relasjon+' '+k.kildeId;}).join(', ')):null
+        ]);
+      }
+      function group(title,sources,note) {
+        return h('div',{class:'sak-grunnlag-gruppe'},[
+          h('h3',null,title+' ('+sources.length+')'),
+          note?h('p',{class:'sak-muted'},note):null,
+          sources.length?h('ul',{class:'sak-journal-poster'},sources.slice(0,60).map(item)):h('p',{class:'sak-muted'},'Ingen registrerte kilder i denne gruppen.'),
+          sources.length>60?h('p',{class:'sak-muted'},'Viser 60 av '+sources.length+' kilder. Kildepakken inneholder alle.'):null
+        ]);
+      }
+      var journal=current.filter(function(s){return s.type==='journal';});
+      var causes=current.filter(function(s){return s.type==='arsak';});
+      var measures=current.filter(function(s){return s.type==='tiltak';});
+      content.appendChild(h('p',null,'Registrert grunnlag for saken: '+basis.sourceCount+' kilder og '+basis.memberCount+' koblede tiltak. Dette er registreringer, ikke en uavhengig faktakontroll.'));
+      content.appendChild(group('Gjeldende journalopplysninger',journal,'Siste versjon av registreringer. Les oppføringenes kilde-ID før de deles.'));
+      content.appendChild(group('Registrerte årsaksvurderinger',causes,'Statusen gjeldende betyr ikke at årsaken er bekreftet.'));
+      content.appendChild(group('Koblede tiltak',measures,'Tiltaksstatus hentes fra registrerte data; effekt er ikke dokumentert automatisk.'));
+      content.appendChild(group('Hypoteser og åpne vurderinger',uncertain));
+      content.appendChild(group('Erstattet eller avkreftet informasjon',outdated,'Bevares for sporbarhet og skal ikke fremstilles som gjeldende konklusjon.'));
+      var chronological=(overview.chronological||[]).slice(-30).reverse().map(function(id){return overview.sources.find(function(s){return s.id===id;});}).filter(Boolean);
+      content.appendChild(group('Siste daterte kilder',chronological,'Nyeste først. Udokumenterte datoer blir ikke gjettet.'));
+      content.appendChild(h('p',{class:'sak-muted'},'Kildegrunnlag: '+basis.grunnlagHash+' · Oversikt: '+overview.projectionHash));
+      content.appendChild(h('p',{class:'sak-muted'},'Kilder uten tidspunkt: '+(overview.utenTidspunkt||[]).length+'. Opplysningene er hentet ved lesing og kan ha endret seg siden.'));
+    }
+    async function load() {
+      var n=++requestNumber;
+      content.textContent='';
+      status=h('p',{class:'sak-muted',role:'status'},'Henter registrerte opplysninger …');
+      content.appendChild(status);
+      try {
+        var result=await root.OpExSakStore.call('getSaksgrunnlagV2',{sakId:m.sak.sakId});
+        if(n!==requestNumber||!panel.isConnected)return;
+        renderBasis(result);
+      }catch(err){
+        if(n!==requestNumber||!panel.isConnected)return;
+        content.textContent='';
+        content.appendChild(h('p',{class:'sak-alert sak-tone-warn',role:'alert'},'Kunne ikke hente saksgrunnlaget: '+((err&&err.message)||'Ukjent feil')));
+        content.appendChild(U.button('Prøv igjen',{small:true,variant:'secondary',on:{click:load}}));
+      }
+    }
+    panel.addEventListener('toggle',function(){if(panel.open)load();else requestNumber++;});
+    return panel;
+  }
+
   /* ------------------------------------------------------------------ enkel saksjournal */
   function journalPanel(m) {
     var panel = h('details', { class: 'sak-journal' });
@@ -364,6 +435,7 @@
         h('p', null, m.saksOppsummering.tekst),
         h('small', { class: 'sak-muted' }, 'Beregnet fra registrerte tiltak per ' + m.saksOppsummering.beregnetDato + '. Ingen AI-vurdering.'),
       ])));
+    page.appendChild(saksgrunnlagPanel(m));
     page.appendChild(journalPanel(m));
     page.appendChild(section('tiltak', 'Tiltak · ' + m.alleTiltak.length, 'list', tiltakSeksjon(m, H), { actions: !lukket && m.summary.totalt ? U.button('Koble tiltak', { icon: 'plus', small: true, variant: 'ghost', on: { click: H.kobleTiltak } }) : null }));
     page.appendChild(section('handling', 'Krever handling', 'alert', kreverHandling(m, H), m.kreverHandling.length && !lukket ? { actions: h('span', { class: 'sak-count' }, String(m.kreverHandling.length)) } : null));
