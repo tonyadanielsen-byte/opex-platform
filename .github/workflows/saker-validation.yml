@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install Firebase dependencies for load checks
-        run: npm install --prefix functions --no-audit --no-fund
+        run: npm ci --prefix functions --no-audit --no-fund
       - name: Install Playwright (test only)
         run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
       - name: Install Chromium for browser tests
