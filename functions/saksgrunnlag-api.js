@@ -38,7 +38,17 @@ exports.getSaksgrunnlagV2=onCall(OPTIONS,async request=>{
   if(keys.some(k=>k!=='sakId')) throw new HttpsError('invalid-argument','Ukjent felt.');
   const db=getDatabase();
   await activeSak(db,request.data?.sakId);
-  return await buildSaksgrunnlagV2(db,request.data.sakId);
+  try { return await buildSaksgrunnlagV2(db,request.data.sakId); }
+  catch(error) {
+    // Internal details are logged server-side only. Clients receive a stable diagnostic marker.
+    console.error('SAKSGRUNNLAG_V2_BUILD_FAILED', {
+      errorName:error && error.name,
+      errorCode:error && error.code,
+      errorMessage:error && error.message,
+      stack:error && typeof error.stack==='string' ? error.stack.slice(0,1800) : undefined,
+    });
+    throw new HttpsError('internal','Saksgrunnlag kunne ikke bygges (SGV2-BUILD).');
+  }
 });
 exports.getSakJournalV1=onCall(OPTIONS,async request=>{
   await auth(request);
