@@ -16,7 +16,7 @@ async function buildSaksgrunnlag(db, sakId) {
   const sak = await read('/saker/' + sakId);
   if (!sak || !sak.sakId || sak.deletedAt || sak.slettetAt || sak.slettet === true) throw new Error('Saken finnes ikke');
   const [tiltak, spor, arsaker, hendelser, journal] = await Promise.all([
-    read('/tiltak'), read('/sakSpor/'+sakId), read('/sakArsaker/'+sakId), read('/sakEvents/'+sakId),
+    (await db.ref('/tiltak').orderByChild('sakId').equalTo(sakId).get()).val() || {}, read('/sakSpor/'+sakId), read('/sakArsaker/'+sakId), read('/sakEvents/'+sakId),
     read('/sakJournal/'+sakId),
   ]);
   const sources = [];
