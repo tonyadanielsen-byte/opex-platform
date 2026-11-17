@@ -192,9 +192,8 @@ test('OpEx Hub lenker til KPI Renhold som egen app', { skip, timeout: 60000 }, a
 
 test('KPI-appen viser innlogging når brukeren ikke er logget inn', { skip, timeout: 60000 }, async (t) => {
   const { openApp: open2 } = require('./ui/harness.cjs');
-  const app = await open2({ side: 'renhold-kpi/index.html', name: 'X' });
+  const app = await open2({ side: 'renhold-kpi/index.html', name: 'X', signedOut: true });
   t.after(() => app.close());
-  await app.page.evaluate(() => firebase.auth().signOut());
   await app.page.locator('#kpiLogin').waitFor();
   assert.equal(await app.page.locator('#kpi').isVisible(), false);
   await app.page.getByLabel('E-post').fill('feil@example.test');

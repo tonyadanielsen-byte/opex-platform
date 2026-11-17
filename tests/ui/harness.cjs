@@ -132,7 +132,7 @@ async function reloadSaker(app) {
 
 /**
  * Åpner appen innlogget som `uid`.
- * options: { uid, name, tiltak, viewport, appearance:'light'|'dark', appTheme:'oee'|'green'|'graphite'|'violet', contrast, density, now, side, hash }
+ * options: { uid, name, tiltak, viewport, appearance:'light'|'dark', appTheme:'oee'|'green'|'graphite'|'violet', contrast, density, now, side, hash, signedOut }
  */
 async function openApp(options = {}) {
   const pw = loadPlaywright();
@@ -163,7 +163,7 @@ async function openApp(options = {}) {
     density: options.density || 'compact',
   };
   const stubInit = {
-    uid, email: 'bruker@example.test', name: options.name || 'Test Bruker',
+    uid, email: 'bruker@example.test', name: options.name || 'Test Bruker', signedOut: !!options.signedOut,
     data: { authorizedUsers: fx.AUTHORIZED, tiltak: backend.db.at('/tiltak'), userPreferences: { [uid]: prefs } },
   };
   await page.addInitScript(`window.__STUB_INIT__ = ${JSON.stringify(stubInit)};`);
