@@ -1,5 +1,5 @@
 /*
- * kpi-app.js — KPI Renhold: datalag (callables), ruting (#kpi, #kpi/registrer, #kpi/oppsett) og visninger.
+ * kpi-app.js — KPI-appen (felles for alle avdelinger, se kpi-enheter.js): datalag (callables), ruting (#kpi, #kpi/registrer, #kpi/oppsett) og visninger.
  *
  * Integrasjon med verten (index.html) skjer KUN via:
  *   - window.OpExHost (bruker, tiltak, navn, token, openTiltak, toast, show)
@@ -10,6 +10,8 @@
 (function (root) {
   'use strict';
 
+  // Avdelingen siden gjelder (settes av kpi/<enhet>/index.html). Alle kall til serveren sendes med { enhet }.
+  function enhetInfo() { var E = root.OpExKpiEnheter; return (E && E.hent(root.KPI_ENHET)) || { id: root.KPI_ENHET || '', navn: 'KPI', avdeling: '', tiltakOmrade: '' }; }
   var U = root.OpExSakUi, F = root.OpExSakForms, L = root.OpExKpiLogic, I = root.OpExKpiImport, C = root.OpExKpiCharts;
   var h = U.h;
   var host = function () { return root.OpExHost; };
@@ -32,7 +34,7 @@
       response = await fetch(hh.functionsBase + '/' + encodeURIComponent(name), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify({ data: data || {} }),
+        body: JSON.stringify({ data: Object.assign({ enhet: enhetInfo().id }, data || {}) }),
         signal: controller ? controller.signal : undefined,
       });
     } catch (e) {
@@ -51,7 +53,7 @@
 
   function last(aar) {
     state.laster = true; state.feil = null; varsle();
-    return call('getRenholdKpiV1', aar ? { aar: aar } : {}).then(function (res) {
+    return call('getKpiV1', aar ? { aar: aar } : {}).then(function (res) {
       var nyttAar = state.aar !== res.aar;
       state.data = res; state.aar = res.aar; state.laster = false;
       if (nyttAar || !state.maaned) state.maaned = standardMaaned(res);
@@ -158,7 +160,7 @@
     if (!kanRegistrere) return null; // bare oversikten: ingen fanelinje
     var faner = [['oversikt', 'Oversikt', 'activity']];
     if (kanRegistrere) faner.push(['registrer', 'Registrer', 'pencil'], ['oppsett', 'Oppsett', 'list']);
-    return h('div', { class: 'kpi-faner', role: 'tablist', 'aria-label': 'KPI Renhold' }, faner.map(function (f) {
+    return h('div', { class: 'kpi-faner', role: 'tablist', 'aria-label': enhetInfo().navn }, faner.map(function (f) {
       return h('button', {
         type: 'button', role: 'tab', class: 'kpi-fane' + (aktiv === f[0] ? ' is-aktiv' : ''), 'aria-selected': aktiv === f[0] ? 'true' : 'false',
         on: { click: function () { gaaTil(f[0]); } },
@@ -457,14 +459,14 @@
       felt('Hva skal gjøres?', tittel),
       h('div', { class: 'kpi-to-kol' }, [felt('Eier', eier), felt('Frist', frist)]),
       h('div', { class: 'kpi-to-kol' }, [felt('Prioritet', prio), felt('Kategori', kat)]),
-      felt('Beskrivelse', beskr, 'Tiltaket legges i den felles tiltakslista (område Renhold) og kobles til KPI-en. Eier får varsel.'),
+      felt('Beskrivelse', beskr, 'Tiltaket legges i den felles tiltakslista (område ' + enhetInfo().tiltakOmrade + ') og kobles til KPI-en. Eier får varsel.'),
     ]);
     F.openDialog({
       title: 'Nytt tiltak', subtitle: def.navn, submitLabel: 'Opprett tiltak', body: body,
       onSubmit: async function () {
         if (!tittel.value.trim()) throw new Error('Skriv hva som skal gjøres.');
         if (!frist.value) throw new Error('Velg en frist.');
-        await call('createRenholdKpiTiltakV1', {
+        await call('createKpiTiltakV1', {
           aar: state.aar, kpiId: def.id, tittel: tittel.value, eier: eier.value, frist: frist.value,
           prioritet: prio.value, kategori: kat.value, beskrivelse: beskr.value, opprettetAv: meg,
         });
@@ -536,7 +538,7 @@
         return;
       }
       state.lagrer = true; render({ tvinges: true });
-      call('saveRenholdKpiMaanedV1', { aar: d.aar, maaned: n, verdier: verdier }).then(function (res) {
+      call('saveKpiMaanedV1', { aar: d.aar, maaned: n, verdier: verdier }).then(function (res) {
         utkast = { nokkel: '', verdier: {} };
         host().toast(res.endret ? res.endret + ' verdier lagret for ' + L.mndNavn(n).toLowerCase() + ' ✓' : 'Ingen endringer å lagre');
         return last(d.aar);
@@ -620,7 +622,7 @@
       var cfg;
       try { cfg = configFraUtkast(u); } catch (e) { feilBoks.hidden = false; feilBoks.textContent = e.message; return; }
       state.lagrer = true; render({ tvinges: true });
-      call('saveRenholdKpiConfigV1', { aar: d.aar, config: cfg }).then(function () {
+      call('saveKpiConfigV1', { aar: d.aar, config: cfg }).then(function () {
         host().toast('Oppsettet for ' + d.aar + ' er lagret ✓');
         oppsettUtkast = null;
         return last(d.aar);
@@ -690,7 +692,7 @@
       title: 'Lag oppsett for ' + nyttAar, submitLabel: 'Lag oppsett',
       body: h('p', null, 'Kopierer ' + Object.keys(kpier).length + ' KPI-er med dagens mål til ' + nyttAar + '. Du kan endre mål, grenser og KPI-er etterpå.'),
       onSubmit: async function () {
-        await call('saveRenholdKpiConfigV1', { aar: nyttAar, config: { naerMaalProsent: d.config.naerMaalProsent, kpier: kpier } });
+        await call('saveKpiConfigV1', { aar: nyttAar, config: { naerMaalProsent: d.config.naerMaalProsent, kpier: kpier } });
         host().toast('Oppsett for ' + nyttAar + ' er laget ✓');
         oppsettUtkast = null;
         await last(nyttAar);
@@ -717,7 +719,7 @@
     });
     return h('section', { class: 'sak-card kpi-import' }, [
       h('h2', { class: 'kpi-h2' }, 'Importer fra Excel'),
-      h('p', { class: 'sak-muted sak-small' }, 'Les inn KPI-arket («KPI 2026 Renhold»): KPI-er, mål, månedsverdier og fjorårets tall. Ingenting lagres før du bekrefter.'),
+      h('p', { class: 'sak-muted sak-small' }, 'Les inn KPI-arket fra Excel (samme oppsett som «KPI 2026 Renhold»): KPI-er, mål, månedsverdier og fjorårets tall. Ingenting lagres før du bekrefter.'),
       felt('Velg Excel-fil', fil),
       resultat,
     ]);
@@ -730,7 +732,7 @@
     var finnes = (d.aarListe || []).indexOf(lest.aar) >= 0;
     var importer = U.button('Importer til ' + lest.aar, { variant: finnes ? 'danger' : 'primary', on: { click: function () {
       importer.disabled = true;
-      call('importRenholdKpiV1', { aar: lest.aar, config: lest.config, verdier: lest.verdier, fjorVerdier: lest.fjorVerdier, overskriv: finnes }).then(function (res) {
+      call('importKpiV1', { aar: lest.aar, config: lest.config, verdier: lest.verdier, fjorVerdier: lest.fjorVerdier, overskriv: finnes }).then(function (res) {
         host().toast('Importert: ' + res.kpier + ' KPI-er, ' + res.verdier + ' verdier for ' + res.aar + ' og ' + res.fjorVerdier + ' fra ' + (res.aar - 1) + ' ✓');
         oppsettUtkast = null;
         return last(res.aar);
@@ -795,9 +797,9 @@
       innhold = byggOversikt(d);
     }
 
-    var underTekst = 'Renhold · Nortura Sarpsborg' + (d ? ' · ' + d.aar : '');
+    var underTekst = enhetInfo().avdeling + ' · Nortura Sarpsborg' + (d ? ' · ' + d.aar : '');
     var side = h('div', { class: 'sak-page kpi-page' }, [
-      sideHode('KPI Renhold', underTekst, d ? [velgere(d, visning !== 'oppsett'), U.button('', { icon: 'refresh', variant: 'ghost', ariaLabel: 'Oppdater', title: 'Oppdater', on: { click: function () { last(state.aar).catch(function () {}); } } })] : []),
+      sideHode(enhetInfo().navn, underTekst, d ? [velgere(d, visning !== 'oppsett'), U.button('', { icon: 'refresh', variant: 'ghost', ariaLabel: 'Oppdater', title: 'Oppdater', on: { click: function () { last(state.aar).catch(function () {}); } } })] : []),
       d ? nav(visning, d.kanRegistrere) : null,
       state.laster && d ? h('div', { class: 'sak-small sak-muted', role: 'status' }, 'Oppdaterer …') : null,
     ].concat(innhold));

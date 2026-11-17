@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * UI-test for KPI Renhold: ekte index.html i Chromium + simulert Firebase + de EKTE renhold-kpi-core-operasjonene.
+ * UI-test for KPI-appen (avdeling renhold, kpi/renhold/): ekte sider i Chromium + simulert Firebase + de EKTE kpi-core-operasjonene.
  * Flyt: tom tilstand -> import fra Excel (syntetisk arbeidsbok) -> oversikt -> registrering -> tiltak i felles liste.
  * Hoppes over hvis Playwright/Chromium mangler. Sett SHOTS_DIR=<mappe> for skjermbilder.
  */
@@ -45,7 +45,7 @@ function syntetiskArbeidsbok() {
 }
 
 test('KPI Renhold: import, oversikt, registrering og tiltak (én økt)', { skip, timeout: 120000 }, async (t) => {
-  const app = await openApp({ name: 'Tony Danielsen', now: '2026-10-09T10:00:00.000Z', side: 'renhold-kpi/index.html' });
+  const app = await openApp({ name: 'Tony Danielsen', now: '2026-10-09T10:00:00.000Z', side: 'kpi/renhold/index.html' });
   const { page, backend } = app;
   t.after(() => app.close());
 
@@ -53,7 +53,7 @@ test('KPI Renhold: import, oversikt, registrering og tiltak (én økt)', { skip,
     await page.getByRole('heading', { name: 'Ingen KPI-er for 2026 ennå' }).waitFor();
     assert.equal(await page.evaluate(() => location.hash), '#kpi');
     assert.equal(await page.locator('#kpiLogin').isVisible(), false);
-    assert.equal(await page.locator('#kpiTiltakLenke').getAttribute('href'), '../');
+    assert.equal(await page.locator('#kpiTiltakLenke').getAttribute('href'), '../../');
     assert.match(await page.locator('#kpiBrukerNavn').textContent(), /Tony/);
     await page.getByRole('button', { name: 'Gå til oppsett' }).click();
     assert.equal(await page.evaluate(() => location.hash), '#kpi/oppsett');
@@ -65,15 +65,15 @@ test('KPI Renhold: import, oversikt, registrering og tiltak (én økt)', { skip,
     await page.locator('.kpi-import input[type=file]').setInputFiles({ name: 'KPI_renhold_2026.xlsx', mimeType: 'application/octet-stream', buffer: Buffer.from('x') });
     await page.getByText('Fant 5 KPI-er for 2026').waitFor();
     assert.match(await page.locator('.kpi-import').textContent(), /HMS-hendelser.*Opp til Ned/);
-    assert.equal(backend.calls.filter((c) => c.fn === 'importRenholdKpiV1').length, 0);
+    assert.equal(backend.calls.filter((c) => c.fn === 'importKpiV1').length, 0);
     await shot(page, 'kpi-01-import');
     await page.getByRole('button', { name: 'Importer til 2026' }).click();
     await page.locator('.kpi-flis').first().waitFor();
     assert.equal(await page.evaluate(() => location.hash), '#kpi');
-    const cfg = backend.db.at('/renholdKpi/config/2026');
+    const cfg = backend.db.at('/kpi/renhold/config/2026');
     assert.equal(Object.keys(cfg.kpier).length, 5);
     assert.equal(cfg.kpier['antall-hms-hendelser'].retning, 'Ned');
-    assert.equal(backend.db.at('/renholdKpi/verdier/2026/01/tilstedevaerelse'), 91);
+    assert.equal(backend.db.at('/kpi/renhold/verdier/2026/01/tilstedevaerelse'), 91);
   });
 
   await t.test('oversikten viser status per KPI for siste måned med data (september)', async () => {
@@ -103,15 +103,15 @@ test('KPI Renhold: import, oversikt, registrering og tiltak (én økt)', { skip,
     await page.getByLabel(/Antall farlige forhold/).fill('to');
     await page.getByRole('button', { name: 'Lagre oktober' }).click();
     await page.getByRole('alert').filter({ hasText: 'Sjekk tallene' }).waitFor();
-    assert.equal(backend.calls.filter((c) => c.fn === 'saveRenholdKpiMaanedV1').length, 0);
+    assert.equal(backend.calls.filter((c) => c.fn === 'saveKpiMaanedV1').length, 0);
     await page.getByLabel(/Antall farlige forhold/).fill('2');
     await page.getByLabel(/Tilstedeværelse/).fill('94,8');
     await page.getByLabel(/Snitt fabrikk/).fill('1,79');
     await shot(page, 'kpi-03-registrer', true);
     await page.getByRole('button', { name: 'Lagre oktober' }).click();
     await page.locator('.kpi-flis').first().waitFor();
-    assert.deepEqual(backend.db.at('/renholdKpi/verdier/2026/10'), { 'antall-farlige-forhold': 2, tilstedevaerelse: 94.8, 'snitt-fabrikk': 1.79 });
-    assert.equal(backend.db.at('/renholdKpi/registrert/2026/10').av, fx.TONY);
+    assert.deepEqual(backend.db.at('/kpi/renhold/verdier/2026/10'), { 'antall-farlige-forhold': 2, tilstedevaerelse: 94.8, 'snitt-fabrikk': 1.79 });
+    assert.equal(backend.db.at('/kpi/renhold/registrert/2026/10').av, fx.TONY);
     assert.match(await page.locator('.kpi-varsel').textContent(), /oktober mangler 2 av 5/i);
   });
 
@@ -148,10 +148,10 @@ test('KPI Renhold: import, oversikt, registrering og tiltak (én økt)', { skip,
     await page.getByRole('tab', { name: 'Oppsett' }).click();
     await page.getByLabel('Grense for «nær mål» (%)').fill('5');
     await page.getByRole('button', { name: 'Lagre oppsett for 2026' }).click();
-    for (let i = 0; i < 100 && !backend.calls.some((c) => c.fn === 'getRenholdKpiV1' && backend.calls.findIndex((x) => x.fn === 'saveRenholdKpiConfigV1') >= 0 && backend.calls.indexOf(c) > backend.calls.findIndex((x) => x.fn === 'saveRenholdKpiConfigV1')); i++) await new Promise((r) => setTimeout(r, 50));
+    for (let i = 0; i < 100 && !backend.calls.some((c) => c.fn === 'getKpiV1' && backend.calls.findIndex((x) => x.fn === 'saveKpiConfigV1') >= 0 && backend.calls.indexOf(c) > backend.calls.findIndex((x) => x.fn === 'saveKpiConfigV1')); i++) await new Promise((r) => setTimeout(r, 50));
     await page.getByRole('button', { name: 'Lagre oppsett for 2026' }).waitFor();
-    assert.equal(backend.calls.filter((c) => c.fn === 'saveRenholdKpiConfigV1' && c.ok).length, 1, JSON.stringify(await page.locator('#kpi [role=alert]').allTextContents()));
-    assert.equal(backend.db.at('/renholdKpi/config/2026/naerMaalProsent'), 5);
+    assert.equal(backend.calls.filter((c) => c.fn === 'saveKpiConfigV1' && c.ok).length, 1, JSON.stringify(await page.locator('#kpi [role=alert]').allTextContents()));
+    assert.equal(backend.db.at('/kpi/renhold/config/2026/naerMaalProsent'), 5);
     await page.getByRole('tab', { name: 'Oversikt' }).click();
     await page.locator('.kpi-velgere select').first().selectOption('9');
     assert.match(await page.locator('.kpi-flis', { hasText: 'Snitt fabrikk' }).textContent(), /Ikke på mål/);
@@ -163,11 +163,11 @@ test('KPI Renhold: import, oversikt, registrering og tiltak (én økt)', { skip,
 });
 
 test('KPI Renhold: bruker uten registreringsrett ser bare oversikten (mobil)', { skip, timeout: 60000 }, async (t) => {
-  const app = await openApp({ uid: fx.ERLING, name: 'Erling Magnussen', viewport: { width: 390, height: 844 }, side: 'renhold-kpi/index.html', hash: '#kpi/registrer' });
+  const app = await openApp({ uid: fx.ERLING, name: 'Erling Magnussen', viewport: { width: 390, height: 844 }, side: 'kpi/renhold/index.html', hash: '#kpi/registrer' });
   const { page, backend } = app;
   t.after(() => app.close());
-  await backend.handle('importRenholdKpiV1', fx.TONY, {
-    aar: 2026,
+  await backend.handle('importKpiV1', fx.TONY, {
+    enhet: 'renhold', aar: 2026,
     config: { kpier: { farlige: { navn: 'Antall farlige forhold', omrade: 'HMS', enhet: 'Antall', retning: 'Opp', aggregat: 'Sum', maaltype: 'HIA', maal: 24 } } },
     verdier: { '01': { farlige: 3 } },
   });
@@ -183,18 +183,32 @@ test('KPI Renhold: bruker uten registreringsrett ser bare oversikten (mobil)', {
   assert.deepEqual(app.pageErrors, []);
 });
 
-test('OpEx Hub lenker til KPI Renhold som egen app', { skip, timeout: 60000 }, async (t) => {
+test('OpEx Hub: KPI-appene er egne knapper øverst (ikke en fane i tiltakslista)', { skip, timeout: 60000 }, async (t) => {
   const app = await openApp({ name: 'Tony Danielsen' });
   t.after(() => app.close());
-  const tab = app.page.locator('#kpiTab');
-  assert.match((await tab.textContent()).trim(), /KPI Renhold/);
-  assert.match(await tab.getAttribute('onclick'), /renhold-kpi\//);
-  assert.equal(await app.page.locator('#kpi').count(), 0, 'KPI-modulen skal ikke ligge inne i OpEx Hub');
+  const { page } = app;
+  assert.equal(await page.locator('.tabs', { hasText: 'KPI' }).count(), 0, 'ingen KPI-fane blant tiltaksfanene');
+  const knapper = page.locator('#opexApps .opex-app-knapp');
+  assert.equal(await knapper.count(), 1, 'bare aktive avdelinger vises (Ferdigmat er ikke aktiv ennå)');
+  assert.equal((await knapper.first().textContent()).trim(), 'KPI Renhold');
+  assert.equal(await knapper.first().getAttribute('href'), './kpi/renhold/');
+  assert.equal(await page.locator('#opexAppsMobil .opex-app-mobil').count(), 1, 'samme lenke i «Mer» på mobil');
+  assert.equal(await page.locator('#kpi').count(), 0, 'KPI-modulen ligger ikke inne i OpEx Hub');
+});
+
+test('gammel adresse renhold-kpi/ sender videre til kpi/renhold/ og beholder visningen', { skip, timeout: 60000 }, async (t) => {
+  const app = await openApp({ side: 'kpi/renhold/index.html', name: 'Tony Danielsen' });
+  t.after(() => app.close());
+  const port = new URL(app.page.url()).port;
+  await app.page.goto(`http://127.0.0.1:${port}/renhold-kpi/#kpi/registrer`);
+  await app.page.waitForURL(/\/kpi\/renhold\/#kpi\/registrer$/);
+  assert.equal(await app.page.title(), 'KPI Renhold · Nortura Sarpsborg');
+  assert.equal((await app.page.locator('#kpiTittel').textContent()).trim(), 'KPI Renhold');
 });
 
 test('KPI-appen viser innlogging når brukeren ikke er logget inn', { skip, timeout: 60000 }, async (t) => {
   const { openApp: open2 } = require('./ui/harness.cjs');
-  const app = await open2({ side: 'renhold-kpi/index.html', name: 'X', signedOut: true });
+  const app = await open2({ side: 'kpi/renhold/index.html', name: 'X', signedOut: true });
   t.after(() => app.close());
   await app.page.locator('#kpiLogin').waitFor();
   assert.equal(await app.page.locator('#kpi').isVisible(), false);

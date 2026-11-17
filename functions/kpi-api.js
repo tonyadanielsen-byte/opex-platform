@@ -1,14 +1,14 @@
 'use strict';
 
 /*
- * KPI Renhold: callable-binding. All logikk ligger i renhold-kpi-core.js (testet mot simulert database).
- * Brukeridentitet hentes fra request.auth.uid (aldri fra klientens data). /renholdKpi leses/skrives kun her.
+ * KPI (alle avdelinger): callable-binding. All logikk ligger i kpi-core.js (testet mot simulert database).
+ * Brukeridentitet hentes fra request.auth.uid (aldri fra klientens data). /kpi/{enhet} leses/skrives kun her.
  */
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getApps, initializeApp } = require('firebase-admin/app');
 const { getDatabase } = require('firebase-admin/database');
-const core = require('./renhold-kpi-core');
+const core = require('./kpi-core');
 
 if (!getApps().length) initializeApp();
 
@@ -36,8 +36,8 @@ function callable(name, operation) {
   });
 }
 
-exports.getRenholdKpiV1 = callable('getRenholdKpiV1', core.getRenholdKpi);
-exports.saveRenholdKpiMaanedV1 = callable('saveRenholdKpiMaanedV1', core.saveRenholdKpiMaaned);
-exports.saveRenholdKpiConfigV1 = callable('saveRenholdKpiConfigV1', core.saveRenholdKpiConfig);
-exports.importRenholdKpiV1 = callable('importRenholdKpiV1', core.importRenholdKpi);
-exports.createRenholdKpiTiltakV1 = callable('createRenholdKpiTiltakV1', core.createRenholdKpiTiltak);
+exports.getKpiV1 = callable('getKpiV1', core.getKpi);
+exports.saveKpiMaanedV1 = callable('saveKpiMaanedV1', core.saveKpiMaaned);
+exports.saveKpiConfigV1 = callable('saveKpiConfigV1', core.saveKpiConfig);
+exports.importKpiV1 = callable('importKpiV1', core.importKpi);
+exports.createKpiTiltakV1 = callable('createKpiTiltakV1', core.createKpiTiltak);

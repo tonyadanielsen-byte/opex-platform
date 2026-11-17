@@ -1,5 +1,6 @@
 /*
- * kpi-shell.js — rammen rundt KPI Renhold som egen app (renhold-kpi/index.html).
+ * kpi-shell.js — rammen rundt KPI-appen (kpi/<enhet>/index.html, f.eks. kpi/renhold/).
+ * Avdelingen settes av siden (window.KPI_ENHET) og slås opp i kpi-enheter.js (navn i topplinje og fanetittel).
  *
  * - Samme Firebase-prosjekt og samme innlogging som OpEx Hub (samme opprinnelse: er du logget inn der, er du logget inn her).
  * - Kobling til tiltakslista: leser /tiltak (for å vise tiltak koblet til KPI-er) og åpner tiltak i OpEx Hub.
@@ -18,7 +19,7 @@
     storageBucket: 'opex-nortura.firebasestorage.app', messagingSenderId: '72695195747', appId: '1:72695195747:web:cb8ca9c1970b4fc3c9b056',
   };
   var FUNCTIONS_BASE = 'https://europe-west1-opex-nortura.cloudfunctions.net';
-  var OPEX_URL = '../';
+  var OPEX_URL = '../../';
   var PROFILER = {
     TJKI3zlDKSR7jvFXksVFgEgjS432: 'Tony Danielsen',
     gibm3aDi1KWlNyl7P3jTktQoGsM2: 'Kenneth Nordbakk',
@@ -131,7 +132,16 @@
     });
   }
 
+  function visAvdeling() {
+    var E = root.OpExKpiEnheter, e = E && E.hent(root.KPI_ENHET);
+    if (!e) return;
+    document.title = e.navn + ' · Nortura Sarpsborg';
+    var t = $('kpiTittel'); if (t) t.textContent = e.navn;
+    var l = $('kpiLoginTittel'); if (l) l.textContent = e.navn;
+  }
+
   function start() {
+    visAvdeling();
     settTema(lesTema());
     $('kpiTema').addEventListener('click', function () {
       var ny = document.body.dataset.appearance === 'dark' ? 'light' : 'dark';

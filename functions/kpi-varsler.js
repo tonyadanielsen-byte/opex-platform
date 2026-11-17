@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * KPI Renhold — varsler: Firebase-binding. Logikken ligger i renhold-kpi-varsler-core.js.
+ * KPI — varsler for alle avdelinger: Firebase-binding. Logikken ligger i kpi-varsler-core.js.
  * Sender som de øvrige OpEx-varslene: aktivitetsinnboks (/activityInbox/{uid}) + push til OpEx-enheter (/pushTokens/{uid}).
  * Et klikk på varselet åpner KPI-appen.
  */
@@ -11,7 +11,7 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { getApps, initializeApp } = require('firebase-admin/app');
 const { getDatabase } = require('firebase-admin/database');
 const { getMessaging } = require('firebase-admin/messaging');
-const core = require('./renhold-kpi-varsler-core');
+const core = require('./kpi-varsler-core');
 
 if (!getApps().length) initializeApp();
 
@@ -56,16 +56,16 @@ function deps() {
   return { get db() { return getDatabase(); }, now: () => new Date(), send, log: console };
 }
 
-exports.notifyRenholdKpiPaaminnelseV1 = onSchedule({
+exports.notifyKpiPaaminnelseV1 = onSchedule({
   schedule: '10 8 * * *', timeZone: 'Europe/Oslo', region: 'europe-west1', memory: '256MiB', timeoutSeconds: 120, maxInstances: 1, retryCount: 1,
 }, async () => {
   const res = await core.paaminnelse(deps());
-  console.log('renhold-kpi påminnelse', res);
+  console.log('kpi påminnelse', res);
 });
 
-exports.notifyRenholdKpiEndringV1 = onValueWritten({
-  ref: '/renholdKpi/verdier/{aar}/{mm}', instance: 'opex-nortura-default-rtdb', region: 'europe-west1', memory: '256MiB', timeoutSeconds: 60, maxInstances: 2,
+exports.notifyKpiEndringV1 = onValueWritten({
+  ref: '/kpi/{enhet}/verdier/{aar}/{mm}', instance: 'opex-nortura-default-rtdb', region: 'europe-west1', memory: '256MiB', timeoutSeconds: 60, maxInstances: 2,
 }, async (event) => {
-  const res = await core.vedEndring(deps(), { aar: event.params.aar, mm: event.params.mm, foer: event.data.before.val() });
-  if (res.sendt.length) console.log('renhold-kpi varsler', { aar: event.params.aar, mm: event.params.mm, sendt: res.sendt });
+  const res = await core.vedEndring(deps(), { enhet: event.params.enhet, aar: event.params.aar, mm: event.params.mm, foer: event.data.before.val() });
+  if (res.sendt.length) console.log('kpi varsler', { enhet: event.params.enhet, aar: event.params.aar, mm: event.params.mm, sendt: res.sendt });
 });

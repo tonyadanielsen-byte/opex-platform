@@ -53,7 +53,7 @@
   function lesBok(celle, arkNavn) {
     var advarsler = [];
     var finnes = function (n) { return arkNavn.indexOf(n) >= 0; };
-    if (!finnes('Januar')) throw new Error('Fant ikke arket «Januar». Er dette KPI-arket for renhold?');
+    if (!finnes('Januar')) throw new Error('Fant ikke arket «Januar». Er dette et KPI-ark med månedsark?');
     if (tekst(celle('Januar', 'C6')).toLowerCase() !== 'kpi') throw new Error('Arket «Januar» har ikke forventet oppsett (mangler «KPI» i C6).');
 
     var aarMatch = /(\d{4})/.exec(tekst(celle('Januar', 'F6')));
