@@ -12,6 +12,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const core = require('../../functions/sak-core');
+const kpiCore = require('../../functions/renhold-kpi-core');
 const { FakeRtdb } = require('../helpers/fake-rtdb.cjs');
 const fx = require('./fixtures.cjs');
 
@@ -22,8 +23,10 @@ const OPS = {
   createSakV1: core.createSak, getSakerV1: core.getSaker, getSakV1: core.getSak, updateSakV1: core.updateSak,
   setTiltakSakV1: core.setTiltakSak, removeTiltakSakV1: core.removeTiltakSak, createArsakV1: core.createArsak, updateArsakV1: core.updateArsak,
   createSporV1: core.createSpor, deleteSakV1: core.deleteSak,
+  getRenholdKpiV1: kpiCore.getRenholdKpi, saveRenholdKpiMaanedV1: kpiCore.saveRenholdKpiMaaned, saveRenholdKpiConfigV1: kpiCore.saveRenholdKpiConfig,
+  importRenholdKpiV1: kpiCore.importRenholdKpi, createRenholdKpiTiltakV1: kpiCore.createRenholdKpiTiltak,
 };
-const HTTP = { 'invalid-argument': [400, 'INVALID_ARGUMENT'], unauthenticated: [401, 'UNAUTHENTICATED'], 'permission-denied': [403, 'PERMISSION_DENIED'], 'not-found': [404, 'NOT_FOUND'], aborted: [409, 'ABORTED'], 'failed-precondition': [400, 'FAILED_PRECONDITION'], internal: [500, 'INTERNAL'] };
+const HTTP = { 'already-exists': [409, 'ALREADY_EXISTS'], 'invalid-argument': [400, 'INVALID_ARGUMENT'], unauthenticated: [401, 'UNAUTHENTICATED'], 'permission-denied': [403, 'PERMISSION_DENIED'], 'not-found': [404, 'NOT_FOUND'], aborted: [409, 'ABORTED'], 'failed-precondition': [400, 'FAILED_PRECONDITION'], internal: [500, 'INTERNAL'] };
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,content-type', 'access-control-allow-methods': 'POST,OPTIONS' };
 
 function loadPlaywright() {
@@ -65,7 +68,8 @@ class SimBackend {
   constructor({ tiltak, authorized = fx.AUTHORIZED, now = fx.NOW_ISO }) {
     this.db = new FakeRtdb({ authorizedUsers: authorized, tiltak: JSON.parse(JSON.stringify(tiltak)) });
     this.t = Date.parse(now);
-    this.deps = { db: this.db, now: () => new Date(++this.t), sleep: async () => {}, log: { error: () => {} } };
+    let keyN = 0;
+    this.deps = { db: this.db, now: () => new Date(++this.t), sleep: async () => {}, newKey: () => `-Okpi${++keyN}`, log: { error: () => {} } };
     this.calls = [];        // {fn, uid, data, ok, code}
     this.failures = [];     // {fn, code, message, times}
     this.latency = 0;

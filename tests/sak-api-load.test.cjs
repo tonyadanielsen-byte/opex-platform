@@ -14,6 +14,7 @@ const skip = !hasDeps && 'functions/node_modules mangler';
 const NYE = ['createSakV1', 'getSakerV1', 'getSakV1', 'updateSakV1', 'setTiltakSakV1', 'removeTiltakSakV1', 'createArsakV1', 'updateArsakV1', 'createSporV1', 'deleteSakV1'];
 const GRUNNLAG = ['getSaksgrunnlagV1','getSaksgrunnlagV2','getSakJournalV1','createSakJournalEntryV1', 'reviseSakJournalEntryV1'];
 const FRA_1A = ['logTiltakEventsV1', 'logTaskCommentEventV1'];
+const RENHOLD_KPI = ['getRenholdKpiV1', 'saveRenholdKpiMaanedV1', 'saveRenholdKpiConfigV1', 'importRenholdKpiV1', 'createRenholdKpiTiltakV1'];
 const EKSISTERENDE = [
   'notifyNewTaskV1C', 'notifyTaskChangesV1C', 'notifyTaskCommentV1', 'notifyDeadlinesV1C',
   'getTaskCommentsV1', 'addTaskCommentV1', 'deleteTaskCommentV1',
@@ -33,10 +34,10 @@ test('alle 10 sak-funksjoner er callables i europe-west1 med lav maxInstances', 
   }
 });
 
-test('entry.js eksporterer nøyaktig: 13 eksisterende + 2 fra 1a + 10 sak + 5 journal/grunnlag = 30 funksjoner', { skip }, () => {
+test('entry.js eksporterer nøyaktig: 13 eksisterende + 2 fra 1a + 10 sak + 5 journal/grunnlag + 5 KPI Renhold = 35 funksjoner', { skip }, () => {
   const entry = require(path.join(fnDir, 'entry.js'));
   for (const name of [...EKSISTERENDE, ...FRA_1A, ...NYE]) assert.equal(typeof entry[name], 'function', `${name} mangler`);
-  assert.deepEqual(Object.keys(entry).sort(), [...EKSISTERENDE, ...FRA_1A, ...NYE, ...GRUNNLAG].sort());
+  assert.deepEqual(Object.keys(entry).sort(), [...EKSISTERENDE, ...FRA_1A, ...NYE, ...GRUNNLAG, ...RENHOLD_KPI].sort());
 });
 
 test('eksisterende funksjoner og 1a-funksjoner er uendret (samme triggere)', { skip }, () => {

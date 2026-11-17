@@ -9,4 +9,5 @@ module.exports = {
   ...require('./tiltak-events'),
   ...require('./sak-api'),
   ...require('./saksgrunnlag-api'),
+  ...require('./renhold-kpi-api'),
 };
