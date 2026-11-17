@@ -29,11 +29,14 @@ Den gamle adressen `kpi/` sender videre til `kpi/renhold/`.
 | `kpi/<enhet>/index.html`, `kpi/kpi-shell.js`, `kpi/kpi-shell.css` | Selve appen per avdeling: topplinje, innlogging, Firebase og vertsflaten (`OpExHost`) mot tiltakslista. |
 | `kpi/kpi-logic.js` | Beregning (HIÅ, mål, status, grenser) og tallformat. Ren, testet. |
 | `kpi/kpi-import.js` | Leser Excel-arket (månedsark Januar–Desember) til oppsett + verdier. |
-| `kpi/kpi-app.js` | Datalag (callables), ruting og visninger: Oversikt (statusfelt, nøkkeltall, utvikling, detaljer per område), Registrer, Oppsett. |
+| `kpi/kpi-app.js` | Kjerne: datalag (callables), ruting, personlige innstillinger (lagres med `saveKpiPreferanserV1`), felles hjelpere (`OpExKpiKjerne`). |
+| `kpi/kpi-oversikt.js` | Oversikten som tilpassbart dashboard: bokser i 12-kolonners rutenett (status, krever oppfølging, registrering, nøkkeltall, grafer, tabeller per område). «Tilpass oversikt»: dra for å flytte, dra i kanten eller velg bredde, velg graftype (stolpe/linje/område), skjul/vis, fargetema og tetthet. |
+| `kpi/kpi-registrer.js` | Registrering: fargekodet seksjon per område, kort per KPI med forhåndsvisning av status, endring fra forrige måned, fremdrift og fast lagrelinje. |
+| `kpi/kpi-oppsett.js` | Oppsett: faner (KPI-er, nytt år, import), KPI-er gruppert per område med sammendrag og redigering ved utfolding. |
 | `kpi/kpi-charts.js` | Avhengighetsfrie SVG-grafer: månedsgraf med mål og fjorår (hover), sparkline, statusring. |
 | `kpi/kpi.css` | Stil (bygger på appens tokens og fargeprofil; faste status- og seriefarger). |
 | `functions/kpi-core.js` | Serverlogikk: tilgang, validering, lagring, logg, import, tiltak. |
-| `functions/kpi-api.js` | Callables (`getKpiV1`, `saveKpiMaanedV1`, `saveKpiConfigV1`, `importKpiV1`, `createKpiTiltakV1` (alle tar `{ enhet }`)). |
+| `functions/kpi-api.js` | Callables (`getKpiV1`, `saveKpiMaanedV1`, `saveKpiConfigV1`, `importKpiV1`, `createKpiTiltakV1`, `saveKpiPreferanserV1` (alle tar `{ enhet }`)). |
 
 ## Statusregel (én felles regel)
 
@@ -52,6 +55,7 @@ Excel-arket brukte ulike grenser i månedsark og dashboard (±20 % mot +0,05) og
 /kpi/{enhet}/verdier/{år}/{mm}/{kpiId} månedens verdi (prosent lagres som 94.8)
 /kpi/{enhet}/registrert/{år}/{mm}     { av, at } siste registrering
 /kpi/{enhet}/logg/{år}/{nøkkel}        endringslogg { mnd, kpiId, foer, etter, av, at }
+/kpi/{enhet}/preferanser/{uid}         personlig oppsett av oversikten (tema, tetthet, bokser)
 /kpi/{enhet}/registratorer/{uid}       true = kan registrere (i tillegg til standard registratorer i kpi-enheter.js)
 ```
 

@@ -119,7 +119,7 @@
   /**
    * Månedsgraf med akser, mållinje, forklaring og verktøytips.
    * opts: {
-   *   type: 'stolpe' | 'linje',
+   *   type: 'stolpe' | 'linje' | 'omraade',
    *   serier: [{ navn, verdier[12], farge (1–8) }],
    *   fjor: { navn, verdier[12] } (valgfri, tegnes som dempet referanse — kun ved én serie),
    *   maal: [{ navn, verdi }] (valgfri, tynne linjer),
@@ -143,10 +143,10 @@
       var leg = el('div', 'kc-legend');
       serier.forEach(function (sr) {
         var it = el('span', 'kc-leg');
-        var sw = el('i', 'kc-sw kc-fill-' + sr.farge + (opts.type === 'linje' ? ' is-linje' : ''));
+        var sw = el('i', 'kc-sw kc-fill-' + sr.farge + (opts.type !== 'stolpe' ? ' is-linje' : ''));
         it.appendChild(sw); it.appendChild(el('span', null, sr.navn)); leg.appendChild(it);
       });
-      if (visFjor) { var f = el('span', 'kc-leg'); f.appendChild(el('i', 'kc-sw kc-sw-fjor' + (opts.type === 'linje' ? ' is-linje' : ''))); f.appendChild(el('span', null, opts.fjor.navn)); leg.appendChild(f); }
+      if (visFjor) { var f = el('span', 'kc-leg'); f.appendChild(el('i', 'kc-sw kc-sw-fjor' + (opts.type !== 'stolpe' ? ' is-linje' : ''))); f.appendChild(el('span', null, opts.fjor.navn)); leg.appendChild(f); }
       (opts.maal || []).forEach(function (m) { var it = el('span', 'kc-leg'); it.appendChild(el('i', 'kc-sw kc-sw-maal')); it.appendChild(el('span', null, m.navn)); leg.appendChild(it); });
       wrap.appendChild(leg);
     }
@@ -203,7 +203,7 @@
 
       if (opts.type === 'stolpe') {
         var grupper = serier.length + (visFjor ? 1 : 0);
-        var bredde = Math.min(24, (band * 0.72 - 2 * (grupper - 1)) / grupper);
+        var bredde = Math.max(1, Math.min(24, (band * 0.72 - 2 * (grupper - 1)) / grupper));
         var total = bredde * grupper + 2 * (grupper - 1);
         var tegnStolpe = function (v, i, j, cls) {
           if (!erTall(v)) return;
@@ -234,7 +234,19 @@
           });
         };
         if (visFjor) linje(opts.fjor.verdier, 'kc-line kc-line-fjor');
+        // «Område»: linje med svak flate ned til grunnlinjen (én flate per sammenhengende strekk).
+        var flate = function (vals, cls) {
+          var seg = [], segs = [], bunn = T + ih;
+          vals.forEach(function (v, i) { if (erTall(v)) seg.push([cx(i), y(v)]); else if (seg.length) { segs.push(seg); seg = []; } });
+          if (seg.length) segs.push(seg);
+          segs.forEach(function (sg) {
+            if (sg.length < 2) return;
+            var pts = [[sg[0][0], bunn]].concat(sg).concat([[sg[sg.length - 1][0], bunn]]);
+            s('polygon', { points: pts.map(function (p) { return p.join(','); }).join(' '), class: cls }, lag);
+          });
+        };
         serier.forEach(function (sr) {
+          if (opts.type === 'omraade') flate(sr.verdier, 'kc-area kc-fill-' + sr.farge);
           linje(sr.verdier, 'kc-line kc-stroke-' + sr.farge);
           sr.verdier.forEach(function (v, i) {
             if (!erTall(v)) return;

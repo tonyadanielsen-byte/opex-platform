@@ -41,3 +41,4 @@ exports.saveKpiMaanedV1 = callable('saveKpiMaanedV1', core.saveKpiMaaned);
 exports.saveKpiConfigV1 = callable('saveKpiConfigV1', core.saveKpiConfig);
 exports.importKpiV1 = callable('importKpiV1', core.importKpi);
 exports.createKpiTiltakV1 = callable('createKpiTiltakV1', core.createKpiTiltak);
+exports.saveKpiPreferanserV1 = callable('saveKpiPreferanserV1', core.saveKpiPreferanser);
