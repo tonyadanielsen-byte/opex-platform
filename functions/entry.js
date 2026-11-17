@@ -10,4 +10,5 @@ module.exports = {
   ...require('./sak-api'),
   ...require('./saksgrunnlag-api'),
   ...require('./renhold-kpi-api'),
+  ...require('./renhold-kpi-varsler'),
 };

@@ -54,8 +54,22 @@ Kortet viser åpne tiltak koblet til KPI-en.
 Oppsett → «Lag oppsett for {år+1}» kopierer KPI-ene og målene; årets resultat blir «oppnådd i fjor». Juster mål etterpå.
 En KPI med registrerte verdier kan ikke slettes, bare settes inaktiv.
 
+## Varsler
+
+Sendes som de øvrige OpEx-varslene: aktivitetsinnboks + push til enheter som har slått på varsler i OpEx Hub. Klikk åpner KPI-appen.
+
+| Varsel | Når | Funksjon |
+|---|---|---|
+| Påminnelse om registrering | Den 3. kl. 08:10 for forrige måned, hvis noe mangler | `notifyRenholdKpiPaaminnelseV1` |
+| Purring | Den 7., 10. og 14. hvis noe fortsatt mangler | `notifyRenholdKpiPaaminnelseV1` |
+| KPI falt til «Ikke på mål» | Ved lagring av nyeste måned (sammenlignet med før; ny måned: med forrige måned) | `notifyRenholdKpiEndringV1` |
+| Månedsoppsummering | Når siste verdi for måneden registreres | `notifyRenholdKpiEndringV1` |
+| Tiltak (opprettet, endret, frist) | Eksisterende tiltaksvarsler, siden KPI-tiltak ligger i tiltakslista | `notifyNewTaskV1C` m.fl. |
+
+Mottakere: Tony og Kenneth, pluss alle med `/renholdKpi/varselMottakere/{uid} = true` (f.eks. Besim, når han har bruker).
+Hvert varsel sendes bare én gang (`/renholdKpi/varslet/{nøkkel}`). Import fra Excel gir ingen varsler.
+Beregningen på serveren bruker `functions/renhold-kpi-logic.js`, en eksakt kopi av `renhold-kpi/kpi-logic.js` (testen sjekker at de er like).
+
 ## Neste steg
 
-- Varsler: påminnelse om registrering (3. i måneden + purring), KPI faller til «Ikke på mål», månedsoppsummering.
-- Besim: legges i `/authorizedUsers` (og ev. `/renholdKpi/registratorer`) når brukeren finnes.
-- Utseende.
+- Besim: legges i `/authorizedUsers` og `/renholdKpi/varselMottakere` (og ev. `/renholdKpi/registratorer`) når brukeren finnes.
