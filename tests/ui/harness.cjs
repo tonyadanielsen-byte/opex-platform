@@ -132,7 +132,7 @@ async function reloadSaker(app) {
 
 /**
  * Åpner appen innlogget som `uid`.
- * options: { uid, name, tiltak, viewport, appearance:'light'|'dark', appTheme:'oee'|'green'|'graphite'|'violet', contrast, density, now }
+ * options: { uid, name, tiltak, viewport, appearance:'light'|'dark', appTheme:'oee'|'green'|'graphite'|'violet', contrast, density, now, side, hash }
  */
 async function openApp(options = {}) {
   const pw = loadPlaywright();
@@ -194,9 +194,15 @@ async function openApp(options = {}) {
 
   backend.pageSync = (tiltak) => page.evaluate((t) => window.__stubDb && window.__stubDb.set('tiltak', t), tiltak);
 
-  await page.goto(`http://127.0.0.1:${port}/index.html`);
-  await page.waitForFunction(() => window.OpExHost !== undefined || document.querySelector('.tabs'), null, { timeout: 15000 });
-  await page.waitForFunction(() => document.getElementById('login') && getComputedStyle(document.getElementById('login')).display === 'none', null, { timeout: 15000 });
+  if (options.side) {
+    // Egen app i samme repo (f.eks. renhold-kpi/index.html): ingen OpEx-innlogging å vente på.
+    await page.goto(`http://127.0.0.1:${port}/${options.side}${options.hash || ''}`);
+    await page.waitForFunction(() => window.OpExHost !== undefined, null, { timeout: 15000 });
+  } else {
+    await page.goto(`http://127.0.0.1:${port}/index.html`);
+    await page.waitForFunction(() => window.OpExHost !== undefined || document.querySelector('.tabs'), null, { timeout: 15000 });
+    await page.waitForFunction(() => document.getElementById('login') && getComputedStyle(document.getElementById('login')).display === 'none', null, { timeout: 15000 });
+  }
 
   return {
     page, backend, port, consoleErrors, pageErrors, context,

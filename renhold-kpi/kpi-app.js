@@ -284,6 +284,8 @@
           h('span', { class: 'kpi-flis-navn' }, r.def.navn),
           h('span', { class: 'kpi-flis-verdi' }, [h('b', null, fmt(r.faktisk, r.def)), h('span', null, r.maal !== null ? ' / ' + fmt(r.maal, r.def, true) : '')]),
           h('span', { class: 'kpi-meter', 'aria-hidden': 'true' }, h('span', { class: 'kpi-meter-fyll kc-bg-' + tone, style: 'width:' + Math.round(andel * 100) + '%' })),
+          C.sparklineFull({ verdier: r.serie, valgt: n, type: r.def.aggregat === 'Snitt' ? 'linje' : 'stolpe', tone: tone, farget: true, hoyde: 52, maal: r.aarsmaal === null ? null : (r.def.maaltype === 'HIA' ? r.aarsmaal / 12 : r.aarsmaal), label: 'Utvikling per måned for ' + r.def.navn }),
+          h('span', { class: 'kpi-flis-akse', 'aria-hidden': 'true' }, [h('span', null, 'jan'), h('span', null, 'des')]),
           h('span', { class: 'kpi-flis-status' }, [U.icon(STATUS_IKON[r.status], 14), h('span', null, r.status)]),
         ]);
       })),

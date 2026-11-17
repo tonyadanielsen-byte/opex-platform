@@ -73,12 +73,13 @@
       v.forEach(function (x, i) {
         if (!erTall(x)) return;
         var top = y(Math.max(x, 0)), h = Math.max(y(0) - top, 1.5);
-        s('rect', { x: P + bw * i + bw * 0.2, y: y(0) - h, width: Math.max(bw * 0.6, 2), height: h, rx: 1.5, class: 'kc-spark-bar' + (i === opts.valgt - 1 ? ' is-valgt kc-tone-' + (opts.tone || 'accent') : '') }, svg);
+        s('rect', { x: P + bw * i + bw * 0.2, y: y(0) - h, width: Math.max(bw * 0.6, 2), height: h, rx: 1.5, class: 'kc-spark-bar' + (opts.farget ? ' kc-tone-' + (opts.tone || 'accent') + (i === opts.valgt - 1 ? ' is-valgt' : ' is-dempet') + (opts.valgt && i > opts.valgt - 1 ? ' is-etter' : '') : (i === opts.valgt - 1 ? ' is-valgt kc-tone-' + (opts.tone || 'accent') : '')) }, svg);
       });
     } else {
       var pts = [];
       v.forEach(function (x, i) { if (erTall(x)) pts.push([P + bw * i + bw / 2, y(x), i]); });
-      if (pts.length > 1) s('polyline', { points: pts.map(function (p) { return p[0] + ',' + p[1]; }).join(' '), class: 'kc-spark-line' }, svg);
+      if (pts.length > 1 && opts.farget) s('polygon', { points: [P + ',' + (H - P)].concat(pts.map(function (p) { return p[0] + ',' + p[1]; })).concat([pts[pts.length - 1][0] + ',' + (H - P), pts[0][0] + ',' + (H - P)]).join(' '), class: 'kc-spark-area kc-tone-' + (opts.tone || 'accent') }, svg);
+      if (pts.length > 1) s('polyline', { points: pts.map(function (p) { return p[0] + ',' + p[1]; }).join(' '), class: 'kc-spark-line' + (opts.farget ? ' kc-tone-' + (opts.tone || 'accent') : '') }, svg);
       var sel = pts.filter(function (p) { return p[2] === opts.valgt - 1; })[0] || pts[pts.length - 1];
       if (sel) s('circle', { cx: sel[0], cy: sel[1], r: 3, class: 'kc-spark-dot kc-tone-' + (opts.tone || 'accent') }, svg);
     }
@@ -291,5 +292,13 @@
     return wrap;
   }
 
-  root.OpExKpiCharts = Object.freeze({ sparkline: sparkline, statusring: statusring, maanedsgraf: maanedsgraf, niceTicks: niceTicks });
+  /** Sparkline som fyller bredden på containeren (tegnes når bredden er kjent). */
+  function sparklineFull(opts) {
+    var wrap = el('div', 'kc-spark-full');
+    wrap.style.height = (opts.hoyde || 48) + 'px';
+    naarSynlig(wrap, function (w) { wrap.textContent = ''; wrap.appendChild(sparkline(Object.assign({}, opts, { bredde: w }))); });
+    return wrap;
+  }
+
+  root.OpExKpiCharts = Object.freeze({ sparkline: sparkline, sparklineFull: sparklineFull, statusring: statusring, maanedsgraf: maanedsgraf, niceTicks: niceTicks });
 }(typeof self !== 'undefined' ? self : this));

@@ -1,12 +1,17 @@
 # KPI Renhold — v1
 
 KPI-registrering og oppfølging for renhold (Nortura Sarpsborg). Erstatter Excel-arket «KPI 2026 Renhold».
-Egen fane i OpEx Hub (`#kpi`, `#kpi/registrer`, `#kpi/oppsett`).
+
+**Egen app** på `renhold-kpi/` (https://tonyadanielsen-byte.github.io/opex-platform/renhold-kpi/), med kobling til tiltakslista i OpEx Hub:
+samme Firebase-prosjekt og samme innlogging (samme opprinnelse, så innlogging i OpEx gjelder også her), leser `/tiltak` for å vise
+koblede tiltak, oppretter KPI-tiltak i den felles lista og åpner tiltak i OpEx Hub (`?openTask=`). OpEx Hub har bare en lenke hit.
+Visninger: `#kpi`, `#kpi/registrer`, `#kpi/oppsett`.
 
 ## Filer
 
 | Fil | Innhold |
 |---|---|
+| `renhold-kpi/index.html`, `kpi-shell.js`, `kpi-shell.css` | Selve appen: topplinje, innlogging, Firebase og vertsflaten (`OpExHost`) mot tiltakslista. |
 | `renhold-kpi/kpi-logic.js` | Beregning (HIÅ, mål, status, grenser) og tallformat. Ren, testet. |
 | `renhold-kpi/kpi-import.js` | Leser Excel-arket (månedsark Januar–Desember) til oppsett + verdier. |
 | `renhold-kpi/kpi-app.js` | Datalag (callables), ruting og visninger: Oversikt (statusfelt, nøkkeltall, utvikling, detaljer per område), Registrer, Oppsett. |

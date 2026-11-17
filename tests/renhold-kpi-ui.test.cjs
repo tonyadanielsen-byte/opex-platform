@@ -45,18 +45,16 @@ function syntetiskArbeidsbok() {
 }
 
 test('KPI Renhold: import, oversikt, registrering og tiltak (én økt)', { skip, timeout: 120000 }, async (t) => {
-  const app = await openApp({ name: 'Tony Danielsen', now: '2026-10-09T10:00:00.000Z' });
+  const app = await openApp({ name: 'Tony Danielsen', now: '2026-10-09T10:00:00.000Z', side: 'renhold-kpi/index.html' });
   const { page, backend } = app;
   t.after(() => app.close());
 
-  await t.test('fanen åpner tom KPI-side med vei til oppsett', async () => {
-    const tab = page.locator('#kpiTab');
-    assert.match((await tab.textContent()).trim(), /KPI Renhold/);
-    await tab.click();
-    await page.locator('#kpi.active').waitFor();
-    assert.equal(await page.evaluate(() => location.hash), '#kpi');
+  await t.test('egen app: innlogget bruker ser tom KPI-side med vei til oppsett og lenke til tiltakslista', async () => {
     await page.getByRole('heading', { name: 'Ingen KPI-er for 2026 ennå' }).waitFor();
-    assert.equal(await tab.evaluate((el) => el.classList.contains('active')), true);
+    assert.equal(await page.evaluate(() => location.hash), '#kpi');
+    assert.equal(await page.locator('#kpiLogin').isVisible(), false);
+    assert.equal(await page.locator('#kpiTiltakLenke').getAttribute('href'), '../');
+    assert.match(await page.locator('#kpiBrukerNavn').textContent(), /Tony/);
     await page.getByRole('button', { name: 'Gå til oppsett' }).click();
     assert.equal(await page.evaluate(() => location.hash), '#kpi/oppsett');
   });
@@ -165,7 +163,7 @@ test('KPI Renhold: import, oversikt, registrering og tiltak (én økt)', { skip,
 });
 
 test('KPI Renhold: bruker uten registreringsrett ser bare oversikten (mobil)', { skip, timeout: 60000 }, async (t) => {
-  const app = await openApp({ uid: fx.ERLING, name: 'Erling Magnussen', viewport: { width: 390, height: 844 } });
+  const app = await openApp({ uid: fx.ERLING, name: 'Erling Magnussen', viewport: { width: 390, height: 844 }, side: 'renhold-kpi/index.html', hash: '#kpi/registrer' });
   const { page, backend } = app;
   t.after(() => app.close());
   await backend.handle('importRenholdKpiV1', fx.TONY, {
@@ -173,8 +171,7 @@ test('KPI Renhold: bruker uten registreringsrett ser bare oversikten (mobil)', {
     config: { kpier: { farlige: { navn: 'Antall farlige forhold', omrade: 'HMS', enhet: 'Antall', retning: 'Opp', aggregat: 'Sum', maaltype: 'HIA', maal: 24 } } },
     verdier: { '01': { farlige: 3 } },
   });
-  await page.evaluate(() => { location.hash = '#kpi/registrer'; });
-  await page.locator('#kpi.active').waitFor();
+  await page.evaluate(() => OpExKpi.last());
   await page.locator('.kpi-flis').first().waitFor();
   assert.equal(await page.getByRole('tab', { name: 'Registrer' }).count(), 0);
   assert.equal(await page.getByRole('tab', { name: 'Oppsett' }).count(), 0);
@@ -182,4 +179,26 @@ test('KPI Renhold: bruker uten registreringsrett ser bare oversikten (mobil)', {
   assert.ok(bredde <= 390, `horisontal scroll på mobil (${bredde}px)`);
   await shot(page, 'kpi-05-mobil', true);
   assert.deepEqual(app.pageErrors, []);
+});
+
+test('OpEx Hub lenker til KPI Renhold som egen app', { skip, timeout: 60000 }, async (t) => {
+  const app = await openApp({ name: 'Tony Danielsen' });
+  t.after(() => app.close());
+  const tab = app.page.locator('#kpiTab');
+  assert.match((await tab.textContent()).trim(), /KPI Renhold/);
+  assert.match(await tab.getAttribute('onclick'), /renhold-kpi\//);
+  assert.equal(await app.page.locator('#kpi').count(), 0, 'KPI-modulen skal ikke ligge inne i OpEx Hub');
+});
+
+test('KPI-appen viser innlogging når brukeren ikke er logget inn', { skip, timeout: 60000 }, async (t) => {
+  const { openApp: open2 } = require('./ui/harness.cjs');
+  const app = await open2({ side: 'renhold-kpi/index.html', name: 'X' });
+  t.after(() => app.close());
+  await app.page.evaluate(() => firebase.auth().signOut());
+  await app.page.locator('#kpiLogin').waitFor();
+  assert.equal(await app.page.locator('#kpi').isVisible(), false);
+  await app.page.getByLabel('E-post').fill('feil@example.test');
+  await app.page.getByLabel('Passord').fill('x');
+  await app.page.getByRole('button', { name: 'Logg inn' }).click();
+  await app.page.getByText('Feil e-post eller passord.').waitFor();
 });

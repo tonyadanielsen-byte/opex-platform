@@ -1,0 +1,54 @@
+/* kpi-shell.css — rammen rundt KPI Renhold som egen app: topplinje, innlogging, side og toast. */
+[hidden] { display: none !important; }
+
+:root { color-scheme: light; }
+body {
+  margin: 0; min-height: 100vh; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --surface: #ffffff; --surface-2: #f6f8f5; --surface-3: #edf1ec; --ink-strong: #14201a; --ink: #2d3a33; --ink-muted: #5e6b64;
+  --line-ui: #dde4dc; --line-strong: #c9d3c8; --app-accent: #6f7f2a; --app-accent-soft: rgba(111, 127, 42, .16);
+  --app-panel: #1a3320; --app-panel2: #102517; --shadow-ui: 0 12px 30px rgba(20, 40, 25, .07);
+  background: linear-gradient(180deg, #eef4ec 0, #fafcf9 420px) no-repeat, #fafcf9;
+  color: var(--ink);
+}
+body[data-appearance="dark"] {
+  color-scheme: dark;
+  --surface: #17201a; --surface-2: #1d2820; --surface-3: #243028; --ink-strong: #f0f4ef; --ink: #d3dbd4; --ink-muted: #9aa69e;
+  --line-ui: #2c3830; --line-strong: #3a473e; --app-panel: #20402a; --app-panel2: #0f2416; --shadow-ui: 0 12px 30px rgba(0, 0, 0, .3);
+  background: linear-gradient(180deg, #0f1a12 0, #121915 420px) no-repeat, #121915;
+}
+
+.kpi-shell-top {
+  position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px max(16px, env(safe-area-inset-left)); color: #fff;
+  background: linear-gradient(90deg, #0b1e10, #173a1c); box-shadow: 0 6px 24px rgba(0, 0, 0, .18);
+}
+.kpi-shell-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.kpi-shell-brand img { width: 38px; height: 38px; border-radius: 10px; background: #fff; padding: 3px; object-fit: contain; }
+.kpi-shell-brand b { display: block; font-size: 17px; letter-spacing: -.01em; }
+.kpi-shell-brand small { display: block; font-size: 12px; color: rgba(255, 255, 255, .7); }
+.kpi-shell-nav { display: flex; align-items: center; gap: 8px; }
+.kpi-shell-link { color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .2); background: rgba(255, 255, 255, .06); white-space: nowrap; }
+.kpi-shell-link:hover { background: rgba(255, 255, 255, .14); }
+.kpi-shell-ikon { width: 38px; height: 38px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .2); background: rgba(255, 255, 255, .06); color: #fff; font-size: 16px; cursor: pointer; }
+.kpi-shell-bruker { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+.kpi-shell-avatar { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #8ea33a, #4f6b1f); font-size: 12.5px; font-weight: 800; }
+.kpi-shell-logg-ut { border: 0; background: transparent; color: rgba(255, 255, 255, .75); cursor: pointer; font: inherit; font-size: 13px; text-decoration: underline; }
+
+.kpi-shell-main { padding: 24px 16px 60px; }
+.kpi-shell-login { display: flex; justify-content: center; padding-top: 8vh; }
+.kpi-shell-loginboks { width: min(100%, 380px); display: flex; flex-direction: column; gap: 12px; padding: 28px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line-ui); box-shadow: var(--shadow-ui); }
+.kpi-shell-loginboks img { width: 56px; height: 56px; object-fit: contain; }
+.kpi-shell-loginboks h1 { margin: 0; font-size: 22px; color: var(--ink-strong); }
+.kpi-shell-loginboks p { margin: 0 0 4px; color: var(--ink-muted); }
+.kpi-shell-loginboks label { display: flex; flex-direction: column; gap: 5px; font-weight: 600; font-size: 13px; color: var(--ink-strong); }
+.kpi-shell-loginboks input { min-height: 42px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-strong); font: inherit; }
+.kpi-shell-feil { padding: 8px 10px; border-radius: 10px; background: #fdeceb; color: #a1241f; font-size: 13px; }
+
+.kpi-shell-toast { position: fixed; right: 16px; bottom: 16px; z-index: 3000; max-width: min(420px, calc(100vw - 32px)); padding: 12px 16px; border-radius: 12px; background: #173a1c; color: #fff; font-weight: 600; box-shadow: 0 16px 40px rgba(0, 0, 0, .25); }
+.kpi-shell-toast.is-feil { background: #a1241f; }
+
+@media (max-width: 560px) {
+  .kpi-shell-brand small, .kpi-shell-bruker #kpiBrukerNavn, .kpi-shell-logg-ut { display: none; }
+  .kpi-shell-link { padding: 7px 10px; font-size: 13px; }
+  .kpi-shell-main { padding: 16px 12px 48px; }
+}
