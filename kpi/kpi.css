@@ -394,3 +394,32 @@ body[data-appearance="dark"] .kpi-scope .kpi-retning-ned { color: #b4abf3; }
 .kpi-scope .kpi-varsel { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .kpi-scope .kpi-varsel > span { flex: 1 1 240px; }
 @media (max-width: 720px) { .kpi-to-kol { grid-template-columns: 1fr; } .kpi-scope .kpi-tabell td, .kpi-scope .kpi-tabell tbody th, .kpi-scope .kpi-tabell thead th { padding: 8px; } }
+
+/* ================================================================ ikonmeny nederst (mobil) */
+.kpi-scope .kpi-bunnmeny { display: none; }
+@media (max-width: 760px) {
+  .kpi-scope .kpi-faner { display: none; }
+  .kpi-scope .kpi-page { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  .kpi-scope .kpi-bunnmeny {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
+    padding: 6px max(8px, env(safe-area-inset-left, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-right, 0px));
+    background: linear-gradient(180deg, var(--kpi-topp-b, #173a1c), var(--kpi-topp-a, #0b1e10));
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, .22); border-top: 1px solid rgba(255, 255, 255, .08);
+  }
+  .kpi-scope .kpi-bunn-knapp {
+    flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 2px; border: 0; border-radius: 12px;
+    background: transparent; color: rgba(255, 255, 255, .7); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .kpi-scope .kpi-bunn-knapp.is-aktiv { color: #fff; background: rgba(255, 255, 255, .12); }
+  .kpi-scope .kpi-bunn-knapp:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+  .kpi-scope .kpi-bunn-ikon { position: relative; display: inline-flex; }
+  .kpi-scope .kpi-bunn-merke { position: absolute; top: -6px; right: -12px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--kc-danger); color: #fff; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--kpi-topp-b, #173a1c); }
+  .kpi-scope .kpi-bunn-tekst { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  /* nøkkeltall to og to, så siden ikke blir så lang */
+  .kpi-scope .kpi-fliser { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .kpi-scope .kpi-flis { padding: 9px 9px 6px 12px; }
+  .kpi-scope .kpi-flis-verdi b { font-size: 20px; }
+  .kpi-scope .kpi-flis-merke { width: 12px; height: 12px; padding: 0; border-radius: 50%; }
+  .kpi-scope .kpi-flis-merke > * { display: none; }
+  .kpi-scope .kpi-reg-lagrelinje, .kpi-scope .kpi-oppsett-lagrelinje { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+}

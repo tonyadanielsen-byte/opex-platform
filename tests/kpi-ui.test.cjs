@@ -50,6 +50,7 @@ test('KPI Renhold: import, oversikt, registrering og tiltak (én økt)', { skip,
   t.after(() => app.close());
 
   await t.test('egen app: innlogget bruker ser tom KPI-side med vei til oppsett og lenke til tiltakslista', async () => {
+    assert.equal(await page.getByRole('navigation', { name: 'Hovedmeny' }).isVisible(), false, 'ikonmenyen vises bare på mobil');
     await page.getByRole('heading', { name: 'Ingen KPI-er for 2026 ennå' }).waitFor();
     assert.equal(await page.evaluate(() => location.hash), '#kpi');
     assert.equal(await page.locator('#kpiLogin').isVisible(), false);
@@ -278,6 +279,11 @@ test('KPI Renhold: bruker uten registreringsrett ser bare oversikten (mobil)', {
   await page.locator('.kpi-flis').first().waitFor();
   assert.equal(await page.getByRole('tab', { name: 'Registrer' }).count(), 0);
   assert.equal(await page.getByRole('tab', { name: 'Oppsett' }).count(), 0);
+  // Ikonmeny nederst på mobil: uten registreringsrett bare Oversikt, Følg opp og Tiltak
+  const meny = page.getByRole('navigation', { name: 'Hovedmeny' });
+  assert.equal(await meny.isVisible(), true);
+  assert.deepEqual((await meny.locator('.kpi-bunn-tekst').allTextContents()), ['Oversikt', 'Følg opp', 'Tiltak']);
+  assert.equal(await meny.locator('.kpi-bunn-knapp.is-aktiv .kpi-bunn-tekst').textContent(), 'Oversikt');
   const bredde = await page.evaluate(() => document.documentElement.scrollWidth);
   assert.ok(bredde <= 390, `horisontal scroll på mobil (${bredde}px)`);
   await shot(page, 'kpi-05-mobil', true);

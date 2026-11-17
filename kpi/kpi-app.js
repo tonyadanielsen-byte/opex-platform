@@ -205,6 +205,33 @@
     }));
   }
 
+  /**
+   * Ikonmeny nederst på mobil (skjult på større skjermer, der fanene over brukes):
+   * Oversikt · Følg opp (antall KPI-er under mål) · Registrer · Oppsett · Tiltak (tiltakslista i OpEx Hub).
+   */
+  function bunnmeny(aktiv, d) {
+    var rode = 0;
+    if (d && d.config) { try { rode = L.vurderAar(d.config, d.verdier, d.fjorVerdier, state.maaned).fokus.length; } catch (e) { rode = 0; } }
+    function folgOpp() {
+      var finn = function () { var el = document.querySelector('[data-widget="oppfolging"]'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+      if (lesRute() !== 'oversikt') { gaaTil('oversikt'); setTimeout(finn, 60); } else finn();
+    }
+    var punkter = [{ id: 'oversikt', tekst: 'Oversikt', ikon: 'activity', klikk: function () { gaaTil('oversikt'); } }];
+    if (d && d.config) punkter.push({ id: 'folgopp', tekst: 'Følg opp', ikon: 'flag', merke: rode, klikk: folgOpp });
+    if (d && d.kanRegistrere) {
+      punkter.push({ id: 'registrer', tekst: 'Registrer', ikon: 'pencil', klikk: function () { gaaTil('registrer'); } });
+      punkter.push({ id: 'oppsett', tekst: 'Oppsett', ikon: 'list', klikk: function () { gaaTil('oppsett'); } });
+    }
+    punkter.push({ id: 'tiltak', tekst: 'Tiltak', ikon: 'layers', klikk: function () { var l = document.getElementById('kpiTiltakLenke'); if (l) l.click(); else root.location.href = '../../'; } });
+    return h('nav', { class: 'kpi-bunnmeny', 'aria-label': 'Hovedmeny' }, punkter.map(function (p) {
+      var erAktiv = p.id === aktiv;
+      return h('button', { type: 'button', class: 'kpi-bunn-knapp' + (erAktiv ? ' is-aktiv' : ''), 'aria-current': erAktiv ? 'page' : null, on: { click: p.klikk } }, [
+        h('span', { class: 'kpi-bunn-ikon' }, [U.icon(p.ikon, 22), p.merke ? h('span', { class: 'kpi-bunn-merke', 'aria-label': p.merke + ' under mål' }, String(p.merke)) : null]),
+        h('span', { class: 'kpi-bunn-tekst' }, p.tekst),
+      ]);
+    }));
+  }
+
   var ENHET_TEKST = { Antall: 'antall per måned', '%': 'prosent per måned', Kr: 'kroner per måned', Score: 'score per måned' };
 
   function chartFmt(enhet) {
@@ -314,6 +341,7 @@
     var side = h('div', { class: 'sak-page kpi-page kpi-page-' + visning }, [
       sideHode(enhetInfo().navn, underTekst, d ? [tilpass, velgere(d, visning !== 'oppsett'), U.button('', { icon: 'refresh', variant: 'ghost', ariaLabel: 'Oppdater', title: 'Oppdater', on: { click: function () { last(state.aar).catch(function () {}); } } })] : []),
       d && d.kanRegistrere ? nav(visning, d.kanRegistrere) : null,
+      d ? bunnmeny(visning, d) : null,
       state.laster && d ? h('div', { class: 'sak-small sak-muted', role: 'status' }, 'Oppdaterer …') : null,
     ].concat(innhold));
 
