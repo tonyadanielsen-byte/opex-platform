@@ -11,6 +11,8 @@
   *   /kpi/{enhet}/logg/{aar}/{nøkkel}        { mnd, kpiId, foer, etter, av, at }   append-only endringslogg
   *   /kpi/{enhet}/registratorer/{uid}        true          (ekstra registratorer uten ny deploy)
  *
+ *   /kpi/{enhet}/preferanser/{uid}     personlig oppsett av oversikten (tema, tetthet, widgets: rekkefølge, bredde, graf, skjult)
+ *
  * Avdelingene (enhet) og standard registratorer står i kpi-enheter.js. Alle kall tar { enhet }.
  * Tilgang: lese = innlogget bruker i /authorizedUsers. Skrive = registrator (standard for avdelingen, eller flagget i databasen).
  * KPI-tiltak skrives til den felles tiltakslista /tiltak med kobling (kilde: 'kpi', kpiEnhet, kpiId, kpiAar), slik at eksisterende
@@ -208,12 +210,13 @@ async function getKpi(deps, uid, data) {
   ]);
   const aarListe = Object.keys(configs).map(Number).filter(Number.isInteger).sort((a, b) => a - b);
   const aar = input.aar !== undefined && input.aar !== null ? lesAar(input.aar) : (aarListe.length ? aarListe[aarListe.length - 1] : new Date().getFullYear());
-  const [verdier, fjorVerdier, registrert] = await Promise.all([
+  const [verdier, fjorVerdier, registrert, preferanser] = await Promise.all([
     deps.db.ref(`${B}/verdier/${aar}`).get().then((s) => s.val() || {}),
     deps.db.ref(`${B}/verdier/${aar - 1}`).get().then((s) => s.val() || {}),
     deps.db.ref(`${B}/registrert/${aar}`).get().then((s) => s.val() || {}),
+    deps.db.ref(`${B}/preferanser/${id}`).get().then((s) => s.val() || null),
   ]);
-  return { enhet, aar, aarListe, config: configs[aar] || null, verdier, fjorVerdier, registrert, kanRegistrere: registrator };
+  return { enhet, aar, aarListe, config: configs[aar] || null, verdier, fjorVerdier, registrert, kanRegistrere: registrator, preferanser };
 }
 
 /** Lagrer verdiene for én måned. Bare endrede verdier skrives; tom verdi (null) sletter. Alt logges. */
@@ -346,7 +349,50 @@ async function createKpiTiltak(deps, uid, data) {
   return { tiltakId: key };
 }
 
+/* ---------------------------------------------------------------- personlige preferanser */
+
+const TEMAER = ['gronn', 'bla', 'grafitt', 'lilla', 'natt'];
+const TETTHETER = ['kompakt', 'normal', 'luftig'];
+const BREDDER = [3, 4, 5, 6, 7, 8, 9, 12];
+const GRAFER = ['stolpe', 'linje', 'omraade'];
+const WIDGET_ID = /^[a-z0-9][a-z0-9-]{0,59}$/;
+
+/** Validerer personlig oppsett av oversikten. Ukjente felt ignoreres. */
+function lesPreferanser(input) {
+  if (!isObject(input)) fail('invalid-argument', 'Ugyldige innstillinger.');
+  const ut = {};
+  if (input.tema !== undefined) ut.tema = valg(input.tema, TEMAER, 'fargetema');
+  if (input.tetthet !== undefined) ut.tetthet = valg(input.tetthet, TETTHETER, 'tetthet');
+  if (input.widgets !== undefined) {
+    if (!isObject(input.widgets)) fail('invalid-argument', 'Ugyldig oppsett av oversikten.');
+    const ider = Object.keys(input.widgets);
+    if (ider.length > 80) fail('invalid-argument', 'For mange bokser i oversikten.');
+    ut.widgets = {};
+    ider.forEach((id) => {
+      if (!WIDGET_ID.test(id)) fail('invalid-argument', `Ugyldig boks «${id}».`);
+      const w = input.widgets[id];
+      if (!isObject(w)) fail('invalid-argument', `Ugyldig boks «${id}».`);
+      const o = {};
+      if (w.rekkefolge !== undefined) { if (!Number.isInteger(w.rekkefolge) || w.rekkefolge < 0 || w.rekkefolge > 9999) fail('invalid-argument', 'Ugyldig rekkefølge.'); o.rekkefolge = w.rekkefolge; }
+      if (w.bredde !== undefined) { if (!BREDDER.includes(w.bredde)) fail('invalid-argument', 'Ugyldig bredde.'); o.bredde = w.bredde; }
+      if (w.graf !== undefined) o.graf = valg(w.graf, GRAFER, 'graftype');
+      if (w.skjult !== undefined) o.skjult = w.skjult === true;
+      ut.widgets[id] = o;
+    });
+  }
+  return ut;
+}
+
+/** Lagrer (eller nullstiller med preferanser: null) brukerens eget oppsett av oversikten. Alle innloggede kan lagre sitt eget. */
+async function saveKpiPreferanser(deps, uid, data) {
+  const input = isObject(data) ? data : {};
+  const { id, B } = await tilgang(deps, uid, input);
+  const pref = input.preferanser === null ? null : lesPreferanser(input.preferanser);
+  await commit(deps, { [`${B}/preferanser/${id}`]: pref ? { ...pref, oppdatertAt: deps.now().toISOString() } : null }, 'Kunne ikke lagre innstillingene. Prøv igjen.');
+  return { lagret: !!pref };
+}
+
 module.exports = {
-  KpiError, KJENTE_NAVN, getKpi, saveKpiMaaned, saveKpiConfig, importKpi, createKpiTiltak,
+  KpiError, KJENTE_NAVN, getKpi, saveKpiMaaned, saveKpiConfig, importKpi, createKpiTiltak, saveKpiPreferanser,
   _intern: { lesConfig, lesAarsverdier },
 };

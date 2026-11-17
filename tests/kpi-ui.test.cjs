@@ -83,9 +83,11 @@ test('KPI Renhold: import, oversikt, registrering og tiltak (én økt)', { skip,
     assert.match(await kort('Antall farlige forhold').textContent(), /Ikke på mål/);
     assert.match(await kort('Antall HMS-hendelser').textContent(), /På mål/);
     assert.match(await kort('Snitt fabrikk').textContent(), /Nær mål/);
-    assert.match(await page.locator('.kpi-hero').textContent(), /3\/5på eller nær mål/);
-    assert.match(await page.locator('.kpi-prio-liste').textContent(), /Antall farlige forhold/);
-    assert.equal(await page.locator('.kpi-graf-panel').count() > 0, true);
+    assert.match(await page.locator('.kpi-w-status').textContent(), /3\/5på eller nær mål/);
+    const oppf = page.locator('.kpi-w-oppfolging');
+    assert.match(await oppf.textContent(), /Antall farlige forhold/);
+    assert.equal(await oppf.evaluate((el) => el.classList.contains('is-rod')), true, 'boksen med KPI-er under mål er markert rød');
+    assert.equal(await page.locator('.kpi-w-graf').count() > 0, true);
     await shot(page, 'kpi-02-oversikt', true);
   });
 
@@ -116,7 +118,7 @@ test('KPI Renhold: import, oversikt, registrering og tiltak (én økt)', { skip,
   });
 
   await t.test('graf viser verdier ved hover', async () => {
-    const graf = page.locator('.kpi-graf-panel').first();
+    const graf = page.locator('.kpi-w-graf').first();
     await graf.locator('.kc-treff').hover({ position: { x: 10, y: 20 } });
     const tip = graf.locator('.kc-tip');
     await tip.waitFor();
@@ -126,7 +128,7 @@ test('KPI Renhold: import, oversikt, registrering og tiltak (én økt)', { skip,
   await t.test('nytt tiltak fra KPI-rad havner i felles tiltaksliste og vises i detaljene', async () => {
     await page.locator('.kpi-rad-knapp', { hasText: 'Antall farlige forhold' }).click();
     await page.locator('.kpi-detalj').waitFor();
-    await page.getByRole('button', { name: 'Nytt tiltak for Antall farlige forhold' }).click();
+    await page.locator('.kpi-detalj').getByRole('button', { name: 'Nytt tiltak for Antall farlige forhold' }).click();
     const dialog = page.locator('.sak-dialog');
     await dialog.waitFor();
     await dialog.getByLabel('Hva skal gjøres?').fill('Vernerunde på kveld må gjennomføres');
@@ -160,6 +162,105 @@ test('KPI Renhold: import, oversikt, registrering og tiltak (én økt)', { skip,
   await t.test('ingen feil i konsollen', async () => {
     assert.deepEqual(app.pageErrors, []);
   });
+});
+
+test('KPI-dashboard: tilpass oversikten (graftype, skjul, flytt, tema) lagres per bruker', { skip, timeout: 120000 }, async (t) => {
+  const app = await openApp({ name: 'Tony Danielsen', side: 'kpi/renhold/index.html', viewport: { width: 1600, height: 1000 } });
+  const { page, backend } = app;
+  t.after(() => app.close());
+  await backend.handle('importKpiV1', fx.TONY, {
+    enhet: 'renhold', aar: 2026,
+    config: { kpier: {
+      farlige: { navn: 'Antall farlige forhold', omrade: 'HMS', enhet: 'Antall', retning: 'Opp', aggregat: 'Sum', maaltype: 'HIA', maal: 24 },
+      tilstede: { navn: 'Tilstedeværelse', omrade: 'HMS', enhet: '%', retning: 'Opp', aggregat: 'Snitt', maaltype: 'Fast', maal: 94 },
+    } },
+    verdier: { '01': { farlige: 1, tilstede: 90 }, '02': { farlige: 1, tilstede: 92 } },
+  });
+  await page.locator('#kpiBruker').waitFor();
+  await page.evaluate(() => OpExKpi.last());
+  await page.locator('.kpi-w').first().waitFor();
+  const lagringer = () => backend.calls.filter((c) => c.fn === 'saveKpiPreferanserV1' && c.ok);
+  const ventLagret = async (n) => { for (let i = 0; i < 80 && lagringer().length < n; i++) await new Promise((r) => setTimeout(r, 50)); assert.ok(lagringer().length >= n, 'innstillingene ble ikke lagret'); };
+  const rekkefolge = () => page.locator('.kpi-dash > .kpi-w').evaluateAll((els) => els.map((e) => e.dataset.widget));
+
+  await page.getByRole('button', { name: 'Tilpass oversikt' }).click();
+  await page.locator('.kpi-tilpass').waitFor();
+
+  // graftype
+  const grafId = (await rekkefolge()).find((id) => id.startsWith('graf-hms-prosent'));
+  await page.getByLabel('Graftype for Tilstedeværelse').selectOption('omraade');
+  await ventLagret(1);
+  assert.equal(backend.db.at(`/kpi/renhold/preferanser/${fx.TONY}/widgets/${grafId}/graf`), 'omraade');
+  await page.locator(`[data-widget="${grafId}"] .kc-area`).first().waitFor();
+
+  // bredde
+  await page.getByLabel('Bredde for Nøkkeltall').selectOption('6');
+  await ventLagret(2);
+  assert.equal(await page.locator('[data-widget="nokkeltall"]').evaluate((el) => getComputedStyle(el).getPropertyValue('--b').trim()), '6');
+
+  // skjul og vis igjen
+  await page.getByRole('button', { name: 'Skjul Registrering 2026' }).click();
+  assert.equal(await page.locator('[data-widget="registrering"]').count(), 0);
+  await page.getByRole('button', { name: 'Vis Registrering 2026' }).click();
+  await page.locator('[data-widget="registrering"]').waitFor();
+
+  // flytt (knapp og dra-og-slipp)
+  const før = await rekkefolge();
+  await page.getByRole('button', { name: 'Flytt Status hittil i år fremover' }).click();
+  const etter = await rekkefolge();
+  assert.equal(etter.indexOf('status'), før.indexOf('status') + 1);
+  await page.locator('[data-widget="nokkeltall"] .kpi-w-hode').dragTo(page.locator('[data-widget="oppfolging"]'), { targetPosition: { x: 5, y: 40 } });
+  const etterDra = await rekkefolge();
+  assert.ok(etterDra.indexOf('nokkeltall') < etterDra.indexOf('oppfolging'), 'dra-og-slipp flyttet boksen: ' + etterDra.join(','));
+
+  // fargetema
+  await page.getByRole('radio', { name: 'Blå' }).click();
+  assert.equal(await page.evaluate(() => document.body.dataset.kpiTema), 'bla');
+
+  // lagres og hentes igjen for samme bruker
+  for (let i = 0; i < 80 && backend.db.at(`/kpi/renhold/preferanser/${fx.TONY}/tema`) !== 'bla'; i++) await new Promise((r) => setTimeout(r, 50));
+  assert.equal(backend.db.at(`/kpi/renhold/preferanser/${fx.TONY}/tema`), 'bla');
+  await page.getByRole('button', { name: 'Ferdig' }).first().click();
+  await page.reload();
+  await page.locator('.kpi-w').first().waitFor();
+  assert.deepEqual(await rekkefolge(), etterDra, 'rekkefølgen er lagret');
+  assert.equal(await page.evaluate(() => document.body.dataset.kpiTema), 'bla');
+
+  // tilbakestill
+  await page.getByRole('button', { name: 'Tilpass oversikt' }).click();
+  await page.getByRole('button', { name: 'Tilbakestill' }).click();
+  assert.equal((await rekkefolge())[0], 'status');
+  assert.deepEqual(app.pageErrors, []);
+});
+
+test('KPI-registrering: forhåndsvisning av status, endringsmarkering og Enter til neste felt', { skip, timeout: 60000 }, async (t) => {
+  const app = await openApp({ name: 'Tony Danielsen', side: 'kpi/renhold/index.html', hash: '#kpi/registrer', now: '2026-03-05T10:00:00.000Z' });
+  const { page, backend } = app;
+  t.after(() => app.close());
+  await backend.handle('importKpiV1', fx.TONY, {
+    enhet: 'renhold', aar: 2026,
+    config: { kpier: {
+      farlige: { navn: 'Antall farlige forhold', omrade: 'HMS', enhet: 'Antall', retning: 'Opp', aggregat: 'Sum', maaltype: 'HIA', maal: 24 },
+      score: { navn: 'Snitt fabrikk', omrade: 'Renholdsresultater', enhet: 'Score', retning: 'Ned', aggregat: 'Snitt', maaltype: 'Fast', maal: 1.5 },
+    } },
+    verdier: { '01': { farlige: 2, score: 1.4 }, '02': { farlige: 2, score: 1.4 } },
+  });
+  await page.locator('#kpiBruker').waitFor();
+  await page.evaluate(() => OpExKpi.last());
+  await page.getByRole('button', { name: 'Mar', exact: true }).click();
+  await page.getByRole('heading', { name: 'Verdier for mars 2026' }).waitFor();
+  const farlige = page.getByLabel(/Antall farlige forhold/);
+  await farlige.fill('0');
+  const kort = page.locator('.kpi-regk', { has: farlige });
+  assert.match(await kort.locator('.kpi-regk-status').textContent(), /Ikke på mål \(HIÅ 4\)/); // 4 mot mål 6 (grense 4,8)
+  assert.match(await kort.locator('.kpi-regk-delta').textContent(), /−2 fra februar/);
+  assert.equal(await kort.evaluate((el) => el.classList.contains('is-endret')), true);
+  await farlige.fill('3');
+  assert.match(await kort.locator('.kpi-regk-status').textContent(), /På mål/);
+  assert.match(await page.locator('.kpi-regf').textContent(), /1 av 2 utfylt.*1 endring ikke lagret/);
+  await farlige.press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'kpi-inp-score');
+  assert.deepEqual(app.pageErrors, []);
 });
 
 test('KPI Renhold: bruker uten registreringsrett ser bare oversikten (mobil)', { skip, timeout: 60000 }, async (t) => {

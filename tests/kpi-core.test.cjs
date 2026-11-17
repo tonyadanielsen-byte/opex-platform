@@ -202,3 +202,20 @@ test('avdelinger: ukjent avdeling avvises, og hver avdeling har egne data og egn
   assert.equal(tiltak.omrade, 'Ferdigmat');
   assert.equal(tiltak.kpiEnhet, 'ferdigmat');
 });
+
+test('personlige preferanser: hver bruker lagrer sitt eget oppsett, validert, og kan nullstille', async () => {
+  const { deps, db } = setup();
+  const pref = { tema: 'bla', tetthet: 'kompakt', widgets: { status: { rekkefolge: 2, bredde: 4 }, 'graf-hms-antall-1': { graf: 'linje', skjult: true, bredde: 6 } } };
+  await rawCore.saveKpiPreferanser(deps, LESER, { enhet: 'renhold', preferanser: pref });
+  const lest = await rawCore.getKpi(deps, LESER, { enhet: 'renhold' });
+  assert.equal(lest.preferanser.tema, 'bla');
+  assert.deepEqual(lest.preferanser.widgets['graf-hms-antall-1'], { graf: 'linje', skjult: true, bredde: 6 });
+  assert.equal((await rawCore.getKpi(deps, TONY, { enhet: 'renhold' })).preferanser, null, 'andre brukere påvirkes ikke');
+  const lagre = (p) => rawCore.saveKpiPreferanser(deps, LESER, { enhet: 'renhold', preferanser: p });
+  await assert.rejects(lagre({ tema: 'regnbue' }), /fargetema/);
+  await assert.rejects(lagre({ widgets: { status: { bredde: 13 } } }), /bredde/);
+  await assert.rejects(lagre({ widgets: { 'Ugyldig ID': {} } }), /Ugyldig boks/);
+  await assert.rejects(rawCore.saveKpiPreferanser(deps, FREMMED, { enhet: 'renhold', preferanser: pref }), koder('permission-denied'));
+  await lagre(null);
+  assert.equal(await val(db, `/kpi/renhold/preferanser/${LESER}`), null);
+});

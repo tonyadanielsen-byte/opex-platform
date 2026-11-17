@@ -24,7 +24,7 @@ const OPS = {
   setTiltakSakV1: core.setTiltakSak, removeTiltakSakV1: core.removeTiltakSak, createArsakV1: core.createArsak, updateArsakV1: core.updateArsak,
   createSporV1: core.createSpor, deleteSakV1: core.deleteSak,
   getKpiV1: kpiCore.getKpi, saveKpiMaanedV1: kpiCore.saveKpiMaaned, saveKpiConfigV1: kpiCore.saveKpiConfig,
-  importKpiV1: kpiCore.importKpi, createKpiTiltakV1: kpiCore.createKpiTiltak,
+  importKpiV1: kpiCore.importKpi, createKpiTiltakV1: kpiCore.createKpiTiltak, saveKpiPreferanserV1: kpiCore.saveKpiPreferanser,
 };
 const HTTP = { 'already-exists': [409, 'ALREADY_EXISTS'], 'invalid-argument': [400, 'INVALID_ARGUMENT'], unauthenticated: [401, 'UNAUTHENTICATED'], 'permission-denied': [403, 'PERMISSION_DENIED'], 'not-found': [404, 'NOT_FOUND'], aborted: [409, 'ABORTED'], 'failed-precondition': [400, 'FAILED_PRECONDITION'], internal: [500, 'INTERNAL'] };
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,content-type', 'access-control-allow-methods': 'POST,OPTIONS' };

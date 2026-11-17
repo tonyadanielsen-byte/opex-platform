@@ -20,7 +20,7 @@ body[data-appearance="dark"] {
 .kpi-shell-top {
   position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 10px max(16px, env(safe-area-inset-left)); color: #fff;
-  background: linear-gradient(90deg, #0b1e10, #173a1c); box-shadow: 0 6px 24px rgba(0, 0, 0, .18);
+  background: linear-gradient(90deg, var(--kpi-topp-a, #0b1e10), var(--kpi-topp-b, #173a1c)); box-shadow: 0 6px 24px rgba(0, 0, 0, .18);
 }
 .kpi-shell-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .kpi-shell-brand img { width: 38px; height: 38px; border-radius: 10px; background: #fff; padding: 3px; object-fit: contain; }
@@ -34,7 +34,7 @@ body[data-appearance="dark"] {
 .kpi-shell-avatar { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #8ea33a, #4f6b1f); font-size: 12.5px; font-weight: 800; }
 .kpi-shell-logg-ut { border: 0; background: transparent; color: rgba(255, 255, 255, .75); cursor: pointer; font: inherit; font-size: 13px; text-decoration: underline; }
 
-.kpi-shell-main { padding: 24px 16px 60px; }
+.kpi-shell-main { padding: 20px clamp(12px, 2vw, 32px) 60px; }
 .kpi-shell-login { display: flex; justify-content: center; padding-top: 8vh; }
 .kpi-shell-loginboks { width: min(100%, 380px); display: flex; flex-direction: column; gap: 12px; padding: 28px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line-ui); box-shadow: var(--shadow-ui); }
 .kpi-shell-loginboks img { width: 56px; height: 56px; object-fit: contain; }
