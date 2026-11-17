@@ -1,4 +1,4 @@
-/* kpi-shell.css — rammen rundt KPI Renhold som egen app: topplinje, innlogging, side og toast. */
+/* kpi-shell.css — rammen rundt KPI-appen: topplinje, innlogging, side og toast. */
 [hidden] { display: none !important; }
 
 :root { color-scheme: light; }

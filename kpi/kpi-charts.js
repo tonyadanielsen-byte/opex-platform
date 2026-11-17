@@ -1,5 +1,5 @@
 /*
- * kpi-charts.js — små, avhengighetsfrie SVG-grafer for KPI Renhold.
+ * kpi-charts.js — små, avhengighetsfrie SVG-grafer for KPI-appen.
  *
  * Følger én fast stil: tynne merker (stolper ≤ 24 px, 4 px avrundet topp, 2 px linjer, punkter med ring),
  * hårfine rutenett, mållinje som tynn heltrukket linje, tekst i teksttokens (aldri i seriefargen),

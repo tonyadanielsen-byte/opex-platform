@@ -1009,10 +1009,10 @@ body[data-contrast="high"][data-appearance="dark"] #mine .action-deadline{color:
 </style>
 </head>
 <body>
-<div class="topstrip"><div>Nortura Sarpsborg · OpEx Hub Live <span class="live">LIVE</span></div><div id="versjon">v2.13.1-contrast-palettes</div></div>
-<nav><div class="brand"><img src="./icons/nortura-logo.png" alt="Nortura"><div>OpEx Hub<small>Operations Excellence · Nortura Sarpsborg</small></div></div><div class="tabs"><button class="tab active" onclick="show('dashboard')">📊 Dashboard</button><button class="tab" onclick="show('mine')">👤 Mine tiltak</button><button class="tab" onclick="show('alle')">📋 Alle tiltak</button><button class="tab" onclick="show('saker')" id="sakerTab"><span class="sak-tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/></svg></span>Saker</button><button class="tab" onclick="location.href='./renhold-kpi/'" id="kpiTab" title="Åpner KPI Renhold (egen app)"><span class="sak-tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>KPI Renhold ↗</button><button class="tab" onclick="show('arkiv')" id="archiveTab" style="display:none">📚 Lagrede tiltak</button><button class="tab" onclick="openModal()">+ Nytt tiltak</button><button class="tab" onclick="show('admin')" id="adminTab">⚙ Admin</button></div><button type="button" class="appearance-toggle" id="appearanceToggle" onclick="toggleAppearance(event)" aria-label="Bytt mellom lyst og mørkt tema" title="Lyst / mørkt tema"><span id="appearanceIcon">☾</span></button><button type="button" class="settings-toggle" id="settingsToggle" onclick="openSettings(event)" aria-label="Åpne personlige innstillinger" title="Personlige innstillinger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1 14h6"/><path d="M9 8h6"/><path d="M17 16h6"/></svg></button><div class="userbox" onclick="toggleDrop()"><div class="avatar" id="avatar">?</div><div><b id="navUser">Velg bruker</b><div class="small muted" style="color:#d7e1d3" id="userRole">ikke valgt</div></div><div class="dropdown" id="drop"><button class="dropitem" onclick="event.stopPropagation();resetUser()">👤 Bytt bruker</button><button class="dropitem" onclick="event.stopPropagation();loadData(true)">🔄 Oppdater data</button><button class="dropitem" onclick="event.stopPropagation();exportExcel()">📊 Eksporter Excel</button><button class="dropitem" onclick="event.stopPropagation();exportBackup()">💾 Eksporter JSON</button><button class="dropitem" id="adminDrop" onclick="event.stopPropagation();show('admin');toggleDrop(false)">⚙ Admin</button></div></div></nav>
+<div class="topstrip"><div>Nortura Sarpsborg · OpEx Hub Live <span class="live">LIVE</span></div><div class="topstrip-hoyre"><div class="opex-apps" id="opexApps" role="group" aria-label="KPI-apper"></div><div id="versjon">v2.13.1-contrast-palettes</div></div></div>
+<nav><div class="brand"><img src="./icons/nortura-logo.png" alt="Nortura"><div>OpEx Hub<small>Operations Excellence · Nortura Sarpsborg</small></div></div><div class="tabs"><button class="tab active" onclick="show('dashboard')">📊 Dashboard</button><button class="tab" onclick="show('mine')">👤 Mine tiltak</button><button class="tab" onclick="show('alle')">📋 Alle tiltak</button><button class="tab" onclick="show('saker')" id="sakerTab"><span class="sak-tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/></svg></span>Saker</button><button class="tab" onclick="show('arkiv')" id="archiveTab" style="display:none">📚 Lagrede tiltak</button><button class="tab" onclick="openModal()">+ Nytt tiltak</button><button class="tab" onclick="show('admin')" id="adminTab">⚙ Admin</button></div><button type="button" class="appearance-toggle" id="appearanceToggle" onclick="toggleAppearance(event)" aria-label="Bytt mellom lyst og mørkt tema" title="Lyst / mørkt tema"><span id="appearanceIcon">☾</span></button><button type="button" class="settings-toggle" id="settingsToggle" onclick="openSettings(event)" aria-label="Åpne personlige innstillinger" title="Personlige innstillinger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1 14h6"/><path d="M9 8h6"/><path d="M17 16h6"/></svg></button><div class="userbox" onclick="toggleDrop()"><div class="avatar" id="avatar">?</div><div><b id="navUser">Velg bruker</b><div class="small muted" style="color:#d7e1d3" id="userRole">ikke valgt</div></div><div class="dropdown" id="drop"><button class="dropitem" onclick="event.stopPropagation();resetUser()">👤 Bytt bruker</button><button class="dropitem" onclick="event.stopPropagation();loadData(true)">🔄 Oppdater data</button><button class="dropitem" onclick="event.stopPropagation();exportExcel()">📊 Eksporter Excel</button><button class="dropitem" onclick="event.stopPropagation();exportBackup()">💾 Eksporter JSON</button><button class="dropitem" id="adminDrop" onclick="event.stopPropagation();show('admin');toggleDrop(false)">⚙ Admin</button></div></div></nav>
 <div class="opex-mobile-more" id="opexMobileMore" aria-label="Flere sider">
-<button type="button" onclick="location.href='./renhold-kpi/'">📈 KPI Renhold ↗</button>
+<div id="opexAppsMobil"></div>
 <button type="button" onclick="mobileGo('arkiv')">📚 Lagrede tiltak</button>
 <button type="button" onclick="mobileNewTask()">＋ Nytt tiltak</button>
 <button type="button" id="mobileAdminAction" onclick="mobileGo('admin')">⚙ Admin</button>
@@ -1195,6 +1195,30 @@ body[data-contrast="high"][data-appearance="dark"] #mine .action-deadline{color:
   </div>
 </div></div>
 <div class="toast" id="toast"></div>
+<script src="./kpi/kpi-enheter.js?v=1"></script>
+<script>
+/* KPI-apper (KPI Renhold, senere KPI Ferdigmat …) som egne knapper øverst og i «Mer» på mobil. Listen står i kpi/kpi-enheter.js. */
+(function(){
+  var IKON='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>';
+  function lenke(e,cls){var a=document.createElement('a');a.className=cls;a.href='./'+e.sti;a.title='Åpne '+e.navn;a.dataset.kpiEnhet=e.id;a.innerHTML=IKON;var t=document.createElement('span');t.textContent=e.navn;a.appendChild(t);return a}
+  function tegn(){var E=window.OpExKpiEnheter;if(!E)return;var top=document.getElementById('opexApps'),mob=document.getElementById('opexAppsMobil');
+    if(top){top.textContent='';E.aktive().forEach(function(e){top.appendChild(lenke(e,'opex-app-knapp'))})}
+    if(mob){mob.textContent='';E.aktive().forEach(function(e){mob.appendChild(lenke(e,'opex-app-mobil'))})}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',tegn);else tegn();
+})();
+</script>
+<style>
+.topstrip-hoyre{display:flex;align-items:center;gap:14px;min-width:0}
+.opex-apps{display:flex;align-items:center;gap:6px}
+.opex-app-knapp{display:inline-flex;align-items:center;gap:6px;height:21px;padding:0 10px;border-radius:999px;border:1px solid color-mix(in srgb,var(--app-accent,#317ee8) 55%,transparent);background:color-mix(in srgb,var(--app-accent,#317ee8) 26%,transparent);color:#fff;font-weight:700;font-size:11.5px;letter-spacing:.01em;text-decoration:none;white-space:nowrap;transition:background .15s,border-color .15s}
+.opex-app-knapp svg{width:13px;height:13px}
+.opex-app-knapp:hover{background:color-mix(in srgb,var(--app-accent,#317ee8) 45%,transparent)}
+.opex-app-knapp:focus-visible{outline:2px solid #fff;outline-offset:2px}
+#opexAppsMobil{display:contents}
+.opex-app-mobil{display:flex;align-items:center;gap:8px;text-decoration:none;color:#f1f5f9;font:inherit;padding:13px;border-radius:8px;min-height:44px}
+.opex-app-mobil:hover{background:rgba(255,255,255,.08)}
+@media (max-width:900px){.opex-apps{display:none}}
+</style>
 <script src="./saker/sak-logic.js?v=1"></script>
 <script src="./saker/sak-view-model.js?v=1"></script>
 <script src="./saker/sak-ui.js?v=1"></script>

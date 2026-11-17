@@ -1,18 +1,19 @@
 'use strict';
 
 /*
- * KPI Renhold — serverlogikk (ren, testbar mot simulert database). Bindes til callables i renhold-kpi-api.js.
+ * KPI (per avdeling: renhold, senere ferdigmat) — serverlogikk (ren, testbar mot simulert database). Bindes til callables i kpi-api.js.
  *
  * Datamodell (leses/skrives KUN her, via admin SDK — klienter har ingen direkte tilgang):
- *   /renholdKpi/config/{aar}               { naerMaalProsent, kpier: { kpiId: { navn, omrade, enhet, retning, aggregat, maaltype,
+ *   /kpi/{enhet}/config/{aar}             { naerMaalProsent, kpier: { kpiId: { navn, omrade, enhet, retning, aggregat, maaltype,
  *                                             maal, fjorResultat, naerMaalProsent, sortering, aktiv } }, oppdatertAv, oppdatertAt }
- *   /renholdKpi/verdier/{aar}/{mm}/{kpiId}  tall (i visningsenhet: prosent som 94.8)
- *   /renholdKpi/registrert/{aar}/{mm}      { av, at }   siste registrering for måneden
- *   /renholdKpi/logg/{aar}/{nøkkel}        { mnd, kpiId, foer, etter, av, at }   append-only endringslogg
- *   /renholdKpi/registratorer/{uid}        true          (ekstra registratorer uten ny deploy)
+  *   /kpi/{enhet}/verdier/{aar}/{mm}/{kpiId}  tall (i visningsenhet: prosent som 94.8)
+  *   /kpi/{enhet}/registrert/{aar}/{mm}      { av, at }   siste registrering for måneden
+  *   /kpi/{enhet}/logg/{aar}/{nøkkel}        { mnd, kpiId, foer, etter, av, at }   append-only endringslogg
+  *   /kpi/{enhet}/registratorer/{uid}        true          (ekstra registratorer uten ny deploy)
  *
- * Tilgang: lese = innlogget bruker i /authorizedUsers. Skrive = registrator (Tony, Kenneth, eller flagget i databasen).
- * KPI-tiltak skrives til den felles tiltakslista /tiltak med kobling (kilde, kpiId, kpiAar), slik at eksisterende
+ * Avdelingene (enhet) og standard registratorer står i kpi-enheter.js. Alle kall tar { enhet }.
+ * Tilgang: lese = innlogget bruker i /authorizedUsers. Skrive = registrator (standard for avdelingen, eller flagget i databasen).
+ * KPI-tiltak skrives til den felles tiltakslista /tiltak med kobling (kilde: 'kpi', kpiEnhet, kpiId, kpiAar), slik at eksisterende
  * tiltaksvarsler (opprettet, endret, frist) gjelder automatisk.
  */
 
@@ -25,11 +26,13 @@ class KpiError extends Error {
 }
 function fail(code, message) { throw new KpiError(code, message); }
 
-const REGISTRATORER = Object.freeze({
+const E = require('./kpi-enheter');
+
+const KJENTE_NAVN = Object.freeze({
   TJKI3zlDKSR7jvFXksVFgEgjS432: 'Tony Danielsen',
   gibm3aDi1KWlNyl7P3jTktQoGsM2: 'Kenneth Nordbakk',
+  lJ7bn7HkbcZnhDoxfaBYQKEFL083: 'Erling Magnussen',
 });
-const KJENTE_NAVN = Object.freeze({ ...REGISTRATORER, lJ7bn7HkbcZnhDoxfaBYQKEFL083: 'Erling Magnussen' });
 
 const SAFE_ID = /^[A-Za-z0-9_-]{1,128}$/;
 const KPI_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
@@ -56,15 +59,29 @@ async function requireAuthorized(deps, uid) {
   return id;
 }
 
-async function erRegistrator(deps, uid) {
-  if (REGISTRATORER[uid]) return true;
-  return (await deps.db.ref(`/renholdKpi/registratorer/${uid}`).get()).val() === true;
+async function erRegistrator(deps, uid, enhet) {
+  if (E.hent(enhet).registratorer.includes(uid)) return true;
+  return (await deps.db.ref(`/kpi/${enhet}/registratorer/${uid}`).get()).val() === true;
 }
 
-async function requireRegistrator(deps, uid) {
-  const id = await requireAuthorized(deps, uid);
-  if (!(await erRegistrator(deps, id))) fail('permission-denied', 'Bare de som registrerer KPI-er kan gjøre endringer her.');
+/** Gyldig avdeling (enhet) fra kallet. Sjekkes etter innlogging, så uinnloggede kall avvises først. */
+function lesEnhet(v) {
+  const id = clean(v);
+  if (!E.hent(id)) fail('invalid-argument', 'Ukjent KPI-avdeling.');
   return id;
+}
+
+/** Innlogget + gyldig avdeling. Returnerer { id, enhet, B } der B er databasestien for avdelingen. */
+async function tilgang(deps, uid, input) {
+  const id = await requireAuthorized(deps, uid);
+  const enhet = lesEnhet(input.enhet);
+  return { id, enhet, B: `/kpi/${enhet}` };
+}
+
+async function requireRegistrator(deps, uid, input) {
+  const t = await tilgang(deps, uid, input);
+  if (!(await erRegistrator(deps, t.id, t.enhet))) fail('permission-denied', 'Bare de som registrerer KPI-er kan gjøre endringer her.');
+  return t;
 }
 
 function navnFor(uid) { return KJENTE_NAVN[uid] || ''; }
@@ -167,7 +184,7 @@ async function commit(deps, updates, melding) {
   for (let forsok = 1; forsok <= 3; forsok++) {
     try { await deps.db.ref().update(updates); return; } catch (error) { last = error; if (forsok < 3) await deps.sleep(150 * forsok); }
   }
-  deps.log.error('renhold-kpi: update feilet', { error: String(last?.message || last), paths: Object.keys(updates).length });
+  deps.log.error('kpi: update feilet', { error: String(last?.message || last), paths: Object.keys(updates).length });
   fail('internal', melding);
 }
 
@@ -182,33 +199,33 @@ function osloDato(d) {
 /* ---------------------------------------------------------------- operasjoner */
 
 /** Henter alt klienten trenger for ett år: oppsett, årets og fjorårets verdier, registreringer og tilgang. */
-async function getRenholdKpi(deps, uid, data) {
-  const id = await requireAuthorized(deps, uid);
+async function getKpi(deps, uid, data) {
   const input = isObject(data) ? data : {};
+  const { id, enhet, B } = await tilgang(deps, uid, input);
   const [configs, registrator] = await Promise.all([
-    deps.db.ref('/renholdKpi/config').get().then((s) => s.val() || {}),
-    erRegistrator(deps, id),
+    deps.db.ref(`${B}/config`).get().then((s) => s.val() || {}),
+    erRegistrator(deps, id, enhet),
   ]);
   const aarListe = Object.keys(configs).map(Number).filter(Number.isInteger).sort((a, b) => a - b);
   const aar = input.aar !== undefined && input.aar !== null ? lesAar(input.aar) : (aarListe.length ? aarListe[aarListe.length - 1] : new Date().getFullYear());
   const [verdier, fjorVerdier, registrert] = await Promise.all([
-    deps.db.ref(`/renholdKpi/verdier/${aar}`).get().then((s) => s.val() || {}),
-    deps.db.ref(`/renholdKpi/verdier/${aar - 1}`).get().then((s) => s.val() || {}),
-    deps.db.ref(`/renholdKpi/registrert/${aar}`).get().then((s) => s.val() || {}),
+    deps.db.ref(`${B}/verdier/${aar}`).get().then((s) => s.val() || {}),
+    deps.db.ref(`${B}/verdier/${aar - 1}`).get().then((s) => s.val() || {}),
+    deps.db.ref(`${B}/registrert/${aar}`).get().then((s) => s.val() || {}),
   ]);
-  return { aar, aarListe, config: configs[aar] || null, verdier, fjorVerdier, registrert, kanRegistrere: registrator };
+  return { enhet, aar, aarListe, config: configs[aar] || null, verdier, fjorVerdier, registrert, kanRegistrere: registrator };
 }
 
 /** Lagrer verdiene for én måned. Bare endrede verdier skrives; tom verdi (null) sletter. Alt logges. */
-async function saveRenholdKpiMaaned(deps, uid, data) {
-  const id = await requireRegistrator(deps, uid);
+async function saveKpiMaaned(deps, uid, data) {
   const input = isObject(data) ? data : {};
+  const { id, B } = await requireRegistrator(deps, uid, input);
   const aar = lesAar(input.aar);
   const mm = lesMaaned(input.maaned);
   if (!isObject(input.verdier)) fail('invalid-argument', 'Mangler verdier.');
-  const config = (await deps.db.ref(`/renholdKpi/config/${aar}`).get()).val();
+  const config = (await deps.db.ref(`${B}/config/${aar}`).get()).val();
   if (!isObject(config) || !isObject(config.kpier)) fail('failed-precondition', `Det finnes ikke noe KPI-oppsett for ${aar}. Lag oppsettet først.`);
-  const naa = (await deps.db.ref(`/renholdKpi/verdier/${aar}/${mm}`).get()).val() || {};
+  const naa = (await deps.db.ref(`${B}/verdier/${aar}/${mm}`).get()).val() || {};
   const now = deps.now();
   const at = now.toISOString();
   const updates = {};
@@ -218,28 +235,28 @@ async function saveRenholdKpiMaaned(deps, uid, data) {
     const ny = lesVerdi(input.verdier[kpiId], config.kpier[kpiId].navn);
     const gammel = erTall(naa[kpiId]) ? naa[kpiId] : null;
     if (ny === gammel) return;
-    updates[`/renholdKpi/verdier/${aar}/${mm}/${kpiId}`] = ny;
+    updates[`${B}/verdier/${aar}/${mm}/${kpiId}`] = ny;
     const logg = { mnd: mm, kpiId, av: id, at };
     if (gammel !== null) logg.foer = gammel;
     if (ny !== null) logg.etter = ny;
-    updates[`/renholdKpi/logg/${aar}/${loggNokkel(now, i++)}`] = logg;
+    updates[`${B}/logg/${aar}/${loggNokkel(now, i++)}`] = logg;
   });
   if (!i) return { aar, maaned: Number(mm), endret: 0 };
-  updates[`/renholdKpi/registrert/${aar}/${mm}`] = { av: id, at };
+  updates[`${B}/registrert/${aar}/${mm}`] = { av: id, at };
   await commit(deps, updates, 'Kunne ikke lagre verdiene. Prøv igjen.');
   return { aar, maaned: Number(mm), endret: i };
 }
 
 /** Lagrer (oppretter eller erstatter) KPI-oppsettet for ett år. */
-async function saveRenholdKpiConfig(deps, uid, data) {
-  const id = await requireRegistrator(deps, uid);
+async function saveKpiConfig(deps, uid, data) {
   const input = isObject(data) ? data : {};
+  const { id, B } = await requireRegistrator(deps, uid, input);
   const aar = lesAar(input.aar);
   const config = lesConfig(input.config);
   // En KPI med registrerte verdier kan ikke fjernes (bare settes inaktiv), ellers mister vi historikk.
   const [gammel, verdier] = await Promise.all([
-    deps.db.ref(`/renholdKpi/config/${aar}`).get().then((s) => s.val()),
-    deps.db.ref(`/renholdKpi/verdier/${aar}`).get().then((s) => s.val() || {}),
+    deps.db.ref(`${B}/config/${aar}`).get().then((s) => s.val()),
+    deps.db.ref(`${B}/verdier/${aar}`).get().then((s) => s.val() || {}),
   ]);
   const brukte = new Set();
   Object.values(verdier).forEach((m) => Object.keys(m || {}).forEach((k) => brukte.add(k)));
@@ -250,7 +267,7 @@ async function saveRenholdKpiConfig(deps, uid, data) {
     }
   });
   await commit(deps, {
-    [`/renholdKpi/config/${aar}`]: { ...config, oppdatertAv: id, oppdatertAt: deps.now().toISOString() },
+    [`${B}/config/${aar}`]: { ...config, oppdatertAv: id, oppdatertAt: deps.now().toISOString() },
   }, 'Kunne ikke lagre oppsettet. Prøv igjen.');
   return { aar };
 }
@@ -259,17 +276,17 @@ async function saveRenholdKpiConfig(deps, uid, data) {
  * Import fra Excel (klienten leser arket og sender strukturerte data): oppsett for året, årets verdier og fjorårets
  * verdier i én atomisk skriving. Overskriver bare hvis overskriv=true.
  */
-async function importRenholdKpi(deps, uid, data) {
-  const id = await requireRegistrator(deps, uid);
+async function importKpi(deps, uid, data) {
   const input = isObject(data) ? data : {};
+  const { id, B } = await requireRegistrator(deps, uid, input);
   const aar = lesAar(input.aar);
   const config = lesConfig(input.config);
   const ider = new Set(Object.keys(config.kpier));
   const verdier = lesAarsverdier(input.verdier, ider, String(aar));
   const fjor = lesAarsverdier(input.fjorVerdier, ider, String(aar - 1));
   const [finnes, fjorFinnes] = await Promise.all([
-    deps.db.ref(`/renholdKpi/config/${aar}`).get().then((s) => s.exists()),
-    deps.db.ref(`/renholdKpi/verdier/${aar - 1}`).get().then((s) => s.exists()),
+    deps.db.ref(`${B}/config/${aar}`).get().then((s) => s.exists()),
+    deps.db.ref(`${B}/verdier/${aar - 1}`).get().then((s) => s.exists()),
   ]);
   if ((finnes || fjorFinnes) && input.overskriv !== true) {
     fail('already-exists', `Det finnes allerede data for ${finnes ? aar : aar - 1}. Bekreft at du vil overskrive.`);
@@ -277,27 +294,27 @@ async function importRenholdKpi(deps, uid, data) {
   const now = deps.now();
   const at = now.toISOString();
   const updates = {
-    [`/renholdKpi/config/${aar}`]: { ...config, oppdatertAv: id, oppdatertAt: at },
-    [`/renholdKpi/verdier/${aar}`]: Object.keys(verdier).length ? verdier : null,
-    [`/renholdKpi/verdier/${aar - 1}`]: Object.keys(fjor).length ? fjor : null,
-    [`/renholdKpi/logg/${aar}/${loggNokkel(now, 0)}`]: { import: true, av: id, at },
+    [`${B}/config/${aar}`]: { ...config, oppdatertAv: id, oppdatertAt: at },
+    [`${B}/verdier/${aar}`]: Object.keys(verdier).length ? verdier : null,
+    [`${B}/verdier/${aar - 1}`]: Object.keys(fjor).length ? fjor : null,
+    [`${B}/logg/${aar}/${loggNokkel(now, 0)}`]: { import: true, av: id, at },
   };
   const registrert = {};
   Object.keys(verdier).forEach((m) => { registrert[m] = { av: id, at, import: true }; });
-  updates[`/renholdKpi/registrert/${aar}`] = Object.keys(registrert).length ? registrert : null;
+  updates[`${B}/registrert/${aar}`] = Object.keys(registrert).length ? registrert : null;
   await commit(deps, updates, 'Importen feilet. Ingenting ble lagret.');
   const antall = (o) => Object.values(o).reduce((s, m) => s + Object.keys(m).length, 0);
   return { aar, kpier: ider.size, verdier: antall(verdier), fjorVerdier: antall(fjor) };
 }
 
 /** Oppretter et tiltak i den felles tiltakslista, koblet til en KPI. */
-async function createRenholdKpiTiltak(deps, uid, data) {
-  const id = await requireAuthorized(deps, uid);
+async function createKpiTiltak(deps, uid, data) {
   const input = isObject(data) ? data : {};
+  const { id, enhet, B } = await tilgang(deps, uid, input);
   const aar = lesAar(input.aar);
   const kpiId = clean(input.kpiId);
   if (!KPI_ID.test(kpiId)) fail('invalid-argument', 'Ugyldig KPI.');
-  const def = (await deps.db.ref(`/renholdKpi/config/${aar}/kpier/${kpiId}`).get()).val();
+  const def = (await deps.db.ref(`${B}/config/${aar}/kpier/${kpiId}`).get()).val();
   if (!isObject(def)) fail('not-found', 'KPI-en finnes ikke.');
   const frist = clean(input.frist);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(frist) || Number.isNaN(Date.parse(frist))) fail('invalid-argument', 'Velg en gyldig frist.');
@@ -306,7 +323,7 @@ async function createRenholdKpiTiltak(deps, uid, data) {
   const tiltak = {
     tittel: tekst(input.tittel, 'Tittel', 160, true),
     kategori,
-    omrade: 'Renhold',
+    omrade: E.hent(enhet).tiltakOmrade,
     prioritet: input.prioritet ? valg(input.prioritet, PRIORITETER, 'prioritet') : 'Middels',
     status: 'Aktiv',
     frist,
@@ -318,7 +335,8 @@ async function createRenholdKpiTiltak(deps, uid, data) {
     opprettetAv: aktor,
     dato: osloDato(deps.now()),
     livssyklus: 'Aktiv',
-    kilde: 'renhold-kpi',
+    kilde: 'kpi',
+    kpiEnhet: enhet,
     kpiId,
     kpiAar: aar,
     kpiNavn: def.navn,
@@ -329,6 +347,6 @@ async function createRenholdKpiTiltak(deps, uid, data) {
 }
 
 module.exports = {
-  KpiError, REGISTRATORER, getRenholdKpi, saveRenholdKpiMaaned, saveRenholdKpiConfig, importRenholdKpi, createRenholdKpiTiltak,
+  KpiError, KJENTE_NAVN, getKpi, saveKpiMaaned, saveKpiConfig, importKpi, createKpiTiltak,
   _intern: { lesConfig, lesAarsverdier },
 };

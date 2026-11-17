@@ -248,6 +248,8 @@ test('Saker: Ribbefett-oppsett gir riktig ledelsesbilde, handlingsliste, spor og
 
   await t.test('kortet viser alt som trengs for å prioritere', async () => {
     await page.locator('.sak-card .sak-foot-item', { hasText: /Aktivitet (i dag|i går|\d+ dager siden)/ }).first().waitFor();
+    // «Aktivitet» vises før tiltakene er hentet; vent til kortet har tiltakene (ellers kappløp mot detaljhentingen).
+    await kort.filter({ hasText: /Krever handling/ }).waitFor();
     const txt = (await kort.innerText()).replace(/\s+/g, ' ');
     assert.match(txt, /SAK-0001/);
     assert.match(txt, /Ribbefett 2025/);

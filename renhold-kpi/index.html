@@ -2,54 +2,10 @@
 <html lang="nb">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>KPI Renhold · Nortura Sarpsborg</title>
-<meta name="theme-color" content="#102517">
-<link rel="icon" href="../icons/opex-icon-192.png" type="image/png">
-<link rel="stylesheet" href="../saker/sak.css?v=2">
-<link rel="stylesheet" href="./kpi.css?v=3">
-<link rel="stylesheet" href="./kpi-shell.css?v=1">
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+<title>KPI Renhold er flyttet</title>
+<!-- Gammel adresse: KPI Renhold ligger nå på kpi/renhold/. Sender videre og beholder visningen (#kpi/...). -->
+<meta http-equiv="refresh" content="0; url=../kpi/renhold/">
+<script>location.replace('../kpi/renhold/' + (location.hash || ''));</script>
 </head>
-<body data-app-theme="green" data-appearance="light">
-<header class="kpi-shell-top">
-  <div class="kpi-shell-brand">
-    <img src="../icons/nortura-logo.png" alt="Nortura">
-    <div><b>KPI Renhold</b><small>Nortura Sarpsborg</small></div>
-  </div>
-  <nav class="kpi-shell-nav" aria-label="Lenker">
-    <a id="kpiTiltakLenke" href="../" class="kpi-shell-link">Tiltakslista <span aria-hidden="true">↗</span></a>
-    <button type="button" class="kpi-shell-ikon" id="kpiTema" aria-label="Bytt mellom lyst og mørkt tema" title="Lyst / mørkt">☾</button>
-    <div class="kpi-shell-bruker" id="kpiBruker" hidden><span class="kpi-shell-avatar" id="kpiAvatar">?</span><span id="kpiBrukerNavn"></span>
-      <button type="button" class="kpi-shell-logg-ut" id="kpiLoggUt">Logg ut</button></div>
-  </nav>
-</header>
-
-<main class="kpi-shell-main">
-  <section id="kpiLogin" class="kpi-shell-login" hidden>
-    <form class="kpi-shell-loginboks" id="kpiLoginForm" novalidate>
-      <img src="../icons/nortura-logo.png" alt="">
-      <h1>KPI Renhold</h1>
-      <p>Logg inn med samme bruker som i OpEx Hub.</p>
-      <label>E-post<input type="email" id="kpiEpost" autocomplete="username" required></label>
-      <label>Passord<input type="password" id="kpiPassord" autocomplete="current-password" required></label>
-      <div class="kpi-shell-feil" id="kpiLoginFeil" role="alert" hidden></div>
-      <button type="submit" class="sak-btn sak-btn-primary">Logg inn</button>
-    </form>
-  </section>
-  <section id="kpi" class="sak-scope kpi-scope" aria-label="KPI Renhold"></section>
-</main>
-<div class="kpi-shell-toast" id="kpiToast" role="status" aria-live="polite" hidden></div>
-
-<script src="../saker/sak-ui.js?v=1"></script>
-<script src="../saker/sak-forms.js?v=1"></script>
-<script src="./kpi-logic.js?v=1"></script>
-<script src="./kpi-import.js?v=1"></script>
-<script src="./kpi-charts.js?v=2"></script>
-<script src="./kpi-shell.js?v=1"></script>
-<script src="./kpi-app.js?v=3"></script>
-</body>
+<body><p>KPI Renhold er flyttet til <a href="../kpi/renhold/">kpi/renhold/</a>.</p></body>
 </html>

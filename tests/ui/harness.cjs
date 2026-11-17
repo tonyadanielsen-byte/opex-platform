@@ -12,7 +12,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const core = require('../../functions/sak-core');
-const kpiCore = require('../../functions/renhold-kpi-core');
+const kpiCore = require('../../functions/kpi-core');
 const { FakeRtdb } = require('../helpers/fake-rtdb.cjs');
 const fx = require('./fixtures.cjs');
 
@@ -23,8 +23,8 @@ const OPS = {
   createSakV1: core.createSak, getSakerV1: core.getSaker, getSakV1: core.getSak, updateSakV1: core.updateSak,
   setTiltakSakV1: core.setTiltakSak, removeTiltakSakV1: core.removeTiltakSak, createArsakV1: core.createArsak, updateArsakV1: core.updateArsak,
   createSporV1: core.createSpor, deleteSakV1: core.deleteSak,
-  getRenholdKpiV1: kpiCore.getRenholdKpi, saveRenholdKpiMaanedV1: kpiCore.saveRenholdKpiMaaned, saveRenholdKpiConfigV1: kpiCore.saveRenholdKpiConfig,
-  importRenholdKpiV1: kpiCore.importRenholdKpi, createRenholdKpiTiltakV1: kpiCore.createRenholdKpiTiltak,
+  getKpiV1: kpiCore.getKpi, saveKpiMaanedV1: kpiCore.saveKpiMaaned, saveKpiConfigV1: kpiCore.saveKpiConfig,
+  importKpiV1: kpiCore.importKpi, createKpiTiltakV1: kpiCore.createKpiTiltak,
 };
 const HTTP = { 'already-exists': [409, 'ALREADY_EXISTS'], 'invalid-argument': [400, 'INVALID_ARGUMENT'], unauthenticated: [401, 'UNAUTHENTICATED'], 'permission-denied': [403, 'PERMISSION_DENIED'], 'not-found': [404, 'NOT_FOUND'], aborted: [409, 'ABORTED'], 'failed-precondition': [400, 'FAILED_PRECONDITION'], internal: [500, 'INTERNAL'] };
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,content-type', 'access-control-allow-methods': 'POST,OPTIONS' };
@@ -53,6 +53,7 @@ function startStaticServer() {
     const url = new URL(req.url, 'http://x');
     let rel = decodeURIComponent(url.pathname);
     if (rel === '/' || rel === '') rel = '/index.html';
+    else if (rel.endsWith('/')) rel += 'index.html'; // som GitHub Pages: mappe -> index.html
     const file = path.normalize(path.join(ROOT, rel));
     if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); res.end('not found'); return; }
     const type = MIME[path.extname(file)] || 'application/octet-stream';

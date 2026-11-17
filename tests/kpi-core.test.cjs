@@ -1,9 +1,16 @@
 'use strict';
 
-// KPI Renhold: serverlogikk mot simulert database — tilgang, validering, lagring, logg, import og tiltak i felles liste.
+// KPI (avdeling renhold): serverlogikk mot simulert database — tilgang, validering, lagring, logg, import og tiltak i felles liste.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const core = require('../functions/renhold-kpi-core');
+const rawCore = require('../functions/kpi-core');
+
+// Alle kall i denne filen gjelder avdelingen «renhold» (som appen sender med automatisk).
+const medEnhet = (fn, enhet = 'renhold') => (deps, uid, data) => fn(deps, uid, { enhet, ...(data || {}) });
+const core = {
+  getRenholdKpi: medEnhet(rawCore.getKpi), saveRenholdKpiMaaned: medEnhet(rawCore.saveKpiMaaned), saveRenholdKpiConfig: medEnhet(rawCore.saveKpiConfig),
+  importRenholdKpi: medEnhet(rawCore.importKpi), createRenholdKpiTiltak: medEnhet(rawCore.createKpiTiltak),
+};
 const { FakeRtdb } = require('./helpers/fake-rtdb.cjs');
 
 const TONY = 'TJKI3zlDKSR7jvFXksVFgEgjS432';
@@ -49,14 +56,14 @@ test('leser kan hente, men ikke registrere', async () => {
 
 test('registrator flagget i databasen får skrive (f.eks. Besim senere)', async () => {
   const { deps, db } = await medOppsett();
-  await db.ref('/renholdKpi/registratorer/' + LESER).set(true);
+  await db.ref('/kpi/renhold/registratorer/' + LESER).set(true);
   const res = await core.saveRenholdKpiMaaned(deps, LESER, { aar: 2026, maaned: 1, verdier: { farlige: 2 } });
   assert.equal(res.endret, 1);
 });
 
 test('oppsett lagres normalisert med standardverdier', async () => {
   const { deps, db } = await medOppsett();
-  const cfg = await val(db, '/renholdKpi/config/2026');
+  const cfg = await val(db, '/kpi/renhold/config/2026');
   assert.equal(cfg.naerMaalProsent, 15);
   assert.equal(cfg.kpier.farlige.aktiv, true);
   assert.equal(cfg.kpier.farlige.sortering, 10);
@@ -80,12 +87,12 @@ test('månedsverdier: bare endringer skrives, alt logges med hvem og når', asyn
   const { deps, db } = await medOppsett();
   let res = await core.saveRenholdKpiMaaned(deps, KENNETH, { aar: 2026, maaned: 10, verdier: { farlige: 1, score: 1.79 } });
   assert.equal(res.endret, 2);
-  assert.deepEqual(await val(db, '/renholdKpi/verdier/2026/10'), { farlige: 1, score: 1.79 });
-  assert.deepEqual(await val(db, '/renholdKpi/registrert/2026/10'), { av: KENNETH, at: '2026-11-03T08:15:00.000Z' });
+  assert.deepEqual(await val(db, '/kpi/renhold/verdier/2026/10'), { farlige: 1, score: 1.79 });
+  assert.deepEqual(await val(db, '/kpi/renhold/registrert/2026/10'), { av: KENNETH, at: '2026-11-03T08:15:00.000Z' });
 
   res = await core.saveRenholdKpiMaaned(deps, TONY, { aar: 2026, maaned: 10, verdier: { farlige: 1, score: 1.8 } });
   assert.equal(res.endret, 1);
-  const logg = Object.values(await val(db, '/renholdKpi/logg/2026'));
+  const logg = Object.values(await val(db, '/kpi/renhold/logg/2026'));
   assert.equal(logg.length, 3);
   const endring = logg.find((l) => l.av === TONY);
   assert.deepEqual({ ...endring, at: undefined }, { mnd: '10', kpiId: 'score', foer: 1.79, etter: 1.8, av: TONY, at: undefined });
@@ -98,7 +105,7 @@ test('tom verdi (null) sletter en registrert verdi', async () => {
   const { deps, db } = await medOppsett();
   await core.saveRenholdKpiMaaned(deps, TONY, { aar: 2026, maaned: 2, verdier: { farlige: 3, score: 1.5 } });
   await core.saveRenholdKpiMaaned(deps, TONY, { aar: 2026, maaned: 2, verdier: { farlige: null } });
-  assert.deepEqual(await val(db, '/renholdKpi/verdier/2026/02'), { score: 1.5 });
+  assert.deepEqual(await val(db, '/kpi/renhold/verdier/2026/02'), { score: 1.5 });
 });
 
 test('månedsverdier valideres', async () => {
@@ -126,12 +133,12 @@ test('import skriver oppsett, årets og fjorårets verdier atomisk; krever bekre
   };
   const res = await core.importRenholdKpi(deps, TONY, data);
   assert.deepEqual(res, { aar: 2026, kpier: 2, verdier: 3, fjorVerdier: 1 });
-  assert.deepEqual(await val(db, '/renholdKpi/verdier/2025'), { '01': { farlige: 1 } });
-  assert.equal((await val(db, '/renholdKpi/registrert/2026/01')).import, true);
+  assert.deepEqual(await val(db, '/kpi/renhold/verdier/2025'), { '01': { farlige: 1 } });
+  assert.equal((await val(db, '/kpi/renhold/registrert/2026/01')).import, true);
 
   await assert.rejects(core.importRenholdKpi(deps, TONY, data), koder('already-exists'));
   await core.importRenholdKpi(deps, TONY, { ...data, verdier: { '03': { farlige: 9 } }, overskriv: true });
-  assert.deepEqual(await val(db, '/renholdKpi/verdier/2026'), { '03': { farlige: 9 } });
+  assert.deepEqual(await val(db, '/kpi/renhold/verdier/2026'), { '03': { farlige: 9 } });
 
   const henting = await core.getRenholdKpi(deps, LESER, { aar: 2026 });
   assert.deepEqual(henting.fjorVerdier, { '01': { farlige: 1 } });
@@ -158,7 +165,8 @@ test('KPI-tiltak legges i felles tiltaksliste med kobling og felter som gir eksi
   assert.equal(t.eier, 'Tony Danielsen');
   assert.equal(t.opprettetAv, 'Kenneth Nordbakk');
   assert.equal(t.dato, '2026-11-03');
-  assert.equal(t.kilde, 'renhold-kpi');
+  assert.equal(t.kilde, 'kpi');
+  assert.equal(t.kpiEnhet, 'renhold');
   assert.equal(t.kpiId, 'farlige');
   assert.equal(t.kpiAar, 2026);
   assert.equal(t.kpiNavn, 'Antall farlige forhold');
@@ -174,4 +182,23 @@ test('KPI-tiltak: kategori følger område, og feil input avvises', async () => 
   await assert.rejects(kjor({ kpiId: 'finnes-ikke' }), koder('not-found'));
   await assert.rejects(kjor({ prioritet: 'Supert' }), /prioritet/);
   await assert.rejects(core.createRenholdKpiTiltak(deps, FREMMED, { aar: 2026, kpiId: 'farlige' }), koder('permission-denied'));
+});
+
+test('avdelinger: ukjent avdeling avvises, og hver avdeling har egne data og egne registratorer', async () => {
+  const { deps, db } = setup();
+  await assert.rejects(rawCore.getKpi(deps, TONY, { enhet: 'bakeri' }), /Ukjent KPI-avdeling/);
+  await assert.rejects(rawCore.getKpi(deps, TONY, {}), /Ukjent KPI-avdeling/);
+  await assert.rejects(rawCore.getKpi(deps, '', { enhet: 'bakeri' }), koder('unauthenticated'));
+  await rawCore.saveKpiConfig(deps, TONY, { enhet: 'renhold', aar: 2026, config: { kpier: KPIER } });
+  const ferdigmat = await rawCore.getKpi(deps, TONY, { enhet: 'ferdigmat' });
+  assert.equal(ferdigmat.config, null, 'ferdigmat ser ikke renholds oppsett');
+  assert.equal(ferdigmat.enhet, 'ferdigmat');
+  assert.equal((await rawCore.getKpi(deps, KENNETH, { enhet: 'ferdigmat' })).kanRegistrere, false, 'Kenneth er ikke standard registrator for ferdigmat');
+  await rawCore.saveKpiConfig(deps, TONY, { enhet: 'ferdigmat', aar: 2026, config: { kpier: { svinn: { navn: 'Svinn', omrade: 'Produksjon', enhet: '%', retning: 'Ned', aggregat: 'Snitt', maaltype: 'Fast', maal: 2 } } } });
+  assert.deepEqual(Object.keys(await val(db, '/kpi/ferdigmat/config/2026/kpier')), ['svinn']);
+  assert.deepEqual(Object.keys(await val(db, '/kpi/renhold/config/2026/kpier')).sort(), ['farlige', 'score']);
+  const t = await rawCore.createKpiTiltak(deps, TONY, { enhet: 'ferdigmat', aar: 2026, kpiId: 'svinn', tittel: 'Redusere svinn', eier: 'Tony Danielsen', frist: '2026-12-01' });
+  const tiltak = await val(db, `/tiltak/${t.tiltakId}`);
+  assert.equal(tiltak.omrade, 'Ferdigmat');
+  assert.equal(tiltak.kpiEnhet, 'ferdigmat');
 });

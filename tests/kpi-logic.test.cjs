@@ -1,10 +1,10 @@
 'use strict';
 
-// KPI Renhold: beregningsregler (HIÅ, mål, status, grenser) og Excel-import mot et syntetisk ark med samme struktur.
+// KPI: beregningsregler (HIÅ, mål, status, grenser) og Excel-import mot et syntetisk ark med samme struktur.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const L = require('../renhold-kpi/kpi-logic.js');
-const I = require('../renhold-kpi/kpi-import.js');
+const L = require('../kpi/kpi-logic.js');
+const I = require('../kpi/kpi-import.js');
 
 const FARLIGE = { id: 'farlige', navn: 'Antall farlige forhold', omrade: 'HMS', enhet: 'Antall', retning: 'Opp', aggregat: 'Sum', maaltype: 'HIA', maal: 24 };
 const HENDELSER = { id: 'hendelser', navn: 'Antall HMS-hendelser', omrade: 'HMS', enhet: 'Antall', retning: 'Ned', aggregat: 'Sum', maaltype: 'HIA', maal: 12 };
