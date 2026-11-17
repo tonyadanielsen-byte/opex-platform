@@ -204,6 +204,8 @@ test('gammel adresse renhold-kpi/ sender videre til kpi/renhold/ og beholder vis
   await app.page.waitForURL(/\/kpi\/renhold\/#kpi\/registrer$/);
   assert.equal(await app.page.title(), 'KPI Renhold · Nortura Sarpsborg');
   assert.equal((await app.page.locator('#kpiTittel').textContent()).trim(), 'KPI Renhold');
+  // Vent til appen har hentet data (ellers avsluttes testen mens et serverkall er underveis).
+  await app.page.getByText('Sett opp KPI-ene for 2026 først (fanen Oppsett).').waitFor();
 });
 
 test('KPI-appen viser innlogging når brukeren ikke er logget inn', { skip, timeout: 60000 }, async (t) => {
