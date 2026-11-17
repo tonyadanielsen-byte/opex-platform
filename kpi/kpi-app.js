@@ -209,6 +209,22 @@
    * Ikonmeny nederst på mobil (skjult på større skjermer, der fanene over brukes):
    * Oversikt · Følg opp (antall KPI-er under mål) · Registrer · Oppsett · Tiltak (tiltakslista i OpEx Hub).
    */
+  // Strekikoner for menyen nederst (faste konstanter, ingen brukerdata).
+  var BUNN_IKONER = {
+    hjem: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>',
+    flagg: '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
+    kalender: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/>',
+    juster: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
+    tiltak: '<rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="m8 9 1.5 1.5L12 8M8 15l1.5 1.5L12 14M14.5 9.5H17M14.5 15.5H17"/>',
+  };
+  function bunnIkon(navn) {
+    var span = document.createElement('span');
+    span.className = 'kpi-bunn-svg';
+    span.setAttribute('aria-hidden', 'true');
+    span.innerHTML = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" focusable="false">' + BUNN_IKONER[navn] + '</svg>';
+    return span;
+  }
+
   function bunnmeny(aktiv, d) {
     var rode = 0;
     if (d && d.config) { try { rode = L.vurderAar(d.config, d.verdier, d.fjorVerdier, state.maaned).fokus.length; } catch (e) { rode = 0; } }
@@ -216,17 +232,17 @@
       var finn = function () { var el = document.querySelector('[data-widget="oppfolging"]'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
       if (lesRute() !== 'oversikt') { gaaTil('oversikt'); setTimeout(finn, 60); } else finn();
     }
-    var punkter = [{ id: 'oversikt', tekst: 'Oversikt', ikon: 'activity', klikk: function () { gaaTil('oversikt'); } }];
-    if (d && d.config) punkter.push({ id: 'folgopp', tekst: 'Følg opp', ikon: 'flag', merke: rode, klikk: folgOpp });
+    var punkter = [{ id: 'oversikt', tekst: 'Oversikt', ikon: 'hjem', klikk: function () { gaaTil('oversikt'); } }];
+    if (d && d.config) punkter.push({ id: 'folgopp', tekst: 'Følg opp', ikon: 'flagg', merke: rode, klikk: folgOpp });
     if (d && d.kanRegistrere) {
-      punkter.push({ id: 'registrer', tekst: 'Registrer', ikon: 'pencil', klikk: function () { gaaTil('registrer'); } });
-      punkter.push({ id: 'oppsett', tekst: 'Oppsett', ikon: 'list', klikk: function () { gaaTil('oppsett'); } });
+      punkter.push({ id: 'registrer', tekst: 'Registrer', ikon: 'kalender', klikk: function () { gaaTil('registrer'); } });
+      punkter.push({ id: 'oppsett', tekst: 'Oppsett', ikon: 'juster', klikk: function () { gaaTil('oppsett'); } });
     }
-    punkter.push({ id: 'tiltak', tekst: 'Tiltak', ikon: 'layers', klikk: function () { var l = document.getElementById('kpiTiltakLenke'); if (l) l.click(); else root.location.href = '../../'; } });
+    punkter.push({ id: 'tiltak', tekst: 'Tiltak', ikon: 'tiltak', klikk: function () { var l = document.getElementById('kpiTiltakLenke'); if (l) l.click(); else root.location.href = '../../'; } });
     return h('nav', { class: 'kpi-bunnmeny', 'aria-label': 'Hovedmeny' }, punkter.map(function (p) {
       var erAktiv = p.id === aktiv;
       return h('button', { type: 'button', class: 'kpi-bunn-knapp' + (erAktiv ? ' is-aktiv' : ''), 'aria-current': erAktiv ? 'page' : null, on: { click: p.klikk } }, [
-        h('span', { class: 'kpi-bunn-ikon' }, [U.icon(p.ikon, 22), p.merke ? h('span', { class: 'kpi-bunn-merke', 'aria-label': p.merke + ' under mål' }, String(p.merke)) : null]),
+        h('span', { class: 'kpi-bunn-ikon' }, [bunnIkon(p.ikon), p.merke ? h('span', { class: 'kpi-bunn-merke', 'aria-label': p.merke + ' under mål' }, String(p.merke)) : null]),
         h('span', { class: 'kpi-bunn-tekst' }, p.tekst),
       ]);
     }));
