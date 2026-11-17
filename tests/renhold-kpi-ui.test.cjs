@@ -171,6 +171,8 @@ test('KPI Renhold: bruker uten registreringsrett ser bare oversikten (mobil)', {
     config: { kpier: { farlige: { navn: 'Antall farlige forhold', omrade: 'HMS', enhet: 'Antall', retning: 'Opp', aggregat: 'Sum', maaltype: 'HIA', maal: 24 } } },
     verdier: { '01': { farlige: 3 } },
   });
+  // Vent til den simulerte innloggingen er levert før appen bes laste data på nytt (ellers kappløp).
+  await page.locator('#kpiBruker').waitFor();
   await page.evaluate(() => OpExKpi.last());
   await page.locator('.kpi-flis').first().waitFor();
   assert.equal(await page.getByRole('tab', { name: 'Registrer' }).count(), 0);
