@@ -10,7 +10,7 @@
 (function (root) {
   'use strict';
 
-  var U = root.OpExSakUi, F = root.OpExSakForms, L = root.OpExKpiLogic, I = root.OpExKpiImport;
+  var U = root.OpExSakUi, F = root.OpExSakForms, L = root.OpExKpiLogic, I = root.OpExKpiImport, C = root.OpExKpiCharts;
   var h = U.h;
   var host = function () { return root.OpExHost; };
   var TIMEOUT_MS = 25000;
@@ -131,44 +131,6 @@
     return h('div', { class: 'sak-field' }, [h('label', { for: input.id }, label), input, hint ? h('div', { class: 'sak-hint sak-muted sak-small' }, hint) : null]);
   }
 
-  /* ---------------------------------------------------------------- minigraf */
-
-  var SVG = 'http://www.w3.org/2000/svg';
-  function svgEl(tag, attrs) { var e = document.createElementNS(SVG, tag); Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); }); return e; }
-
-  /** 12 måneder: stolper (Sum) eller linje (Snitt), stiplet mållinje (mål per måned), fjoråret som tynn linje. */
-  function minigraf(r, n) {
-    var W = 240, H = 64, P = 4;
-    var maalMnd = r.aarsmaal === null ? null : (r.def.maaltype === 'HIA' ? r.aarsmaal / 12 : r.aarsmaal);
-    var alle = r.serie.concat(r.fjorSerie).filter(L.erTall);
-    if (maalMnd !== null) alle.push(maalMnd);
-    var maks = Math.max.apply(null, alle.concat([0])), min = r.def.aggregat === 'Snitt' ? Math.min.apply(null, alle.concat([maks])) : 0;
-    if (r.def.aggregat === 'Snitt') { var pad = (maks - min) * 0.25 || 0.5; min -= pad; maks += pad; }
-    if (maks === min) maks = min + 1;
-    var y = function (v) { return H - P - (v - min) / (maks - min) * (H - 2 * P); };
-    var bw = (W - 2 * P) / 12;
-    var x = function (i) { return P + bw * i + bw / 2; };
-    var svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'kpi-graf', role: 'img', 'aria-label': 'Utvikling per måned for ' + r.def.navn, preserveAspectRatio: 'none' });
-    var fjor = r.fjorSerie.map(function (v, i) { return L.erTall(v) ? [x(i), y(v)] : null; }).filter(Boolean);
-    if (fjor.length > 1) svg.appendChild(svgEl('polyline', { points: fjor.map(function (p) { return p.join(','); }).join(' '), class: 'kpi-graf-fjor' }));
-    if (r.def.aggregat === 'Sum') {
-      r.serie.forEach(function (v, i) {
-        if (!L.erTall(v)) return;
-        var top = y(Math.max(v, 0)), bunn = y(0);
-        svg.appendChild(svgEl('rect', { x: P + bw * i + bw * 0.18, y: Math.min(top, bunn - 1.5), width: bw * 0.64, height: Math.max(bunn - top, 1.5), rx: 2, class: 'kpi-graf-stolpe' + (i === n - 1 ? ' is-valgt' : i >= n ? ' is-etter' : '') }));
-      });
-    } else {
-      var pts = r.serie.map(function (v, i) { return L.erTall(v) ? [x(i), y(v)] : null; });
-      var seg = [];
-      pts.forEach(function (p) { if (p) seg.push(p); else if (seg.length) { tegnLinje(seg); seg = []; } });
-      if (seg.length) tegnLinje(seg);
-      pts.forEach(function (p, i) { if (p) svg.appendChild(svgEl('circle', { cx: p[0], cy: p[1], r: i === n - 1 ? 3.6 : 2.2, class: 'kpi-graf-punkt' + (i === n - 1 ? ' is-valgt' : '') })); });
-    }
-    function tegnLinje(s) { if (s.length > 1) svg.appendChild(svgEl('polyline', { points: s.map(function (p) { return p.join(','); }).join(' '), class: 'kpi-graf-linje' })); }
-    if (maalMnd !== null) svg.appendChild(svgEl('line', { x1: P, x2: W - P, y1: y(maalMnd), y2: y(maalMnd), class: 'kpi-graf-maal' }));
-    return svg;
-  }
-
   /* ================================================================== oversikt */
 
   function sideHode(tittel, under, handlinger) {
@@ -207,96 +169,271 @@
   function byggOversikt(d) {
     var n = state.maaned;
     var vurd = L.vurderAar(d.config, d.verdier, d.fjorVerdier, n);
-    var reg = d.registrert && d.registrert[L.mndKey(n)];
-    var mangler = L.manglerVerdi(d.config, d.verdier, n);
+    return [
+      byggHero(d, vurd, n),
+      byggManglerVarsel(d, vurd, n),
+      byggNokkeltall(vurd, n),
+      byggUtvikling(d, vurd, n),
+      h('h2', { class: 'kpi-seksjon-tittel' }, 'Detaljer og tiltak'),
+    ].concat(vurd.grupper.map(function (g) { return byggOmradePanel(g, n, d); }));
+  }
 
-    var sammendrag = h('div', { class: 'kpi-sammendrag sak-card' }, [
-      h('div', { class: 'kpi-sammendrag-hoved' }, [
-        h('div', { class: 'kpi-stor' }, [h('b', null, String(vurd.tell.paa)), h('span', null, ' av ' + vurd.totalt + ' på mål')]),
-        h('div', { class: 'sak-muted sak-small' }, 'Hittil i år t.o.m. ' + vurd.maanedNavn.toLowerCase() + ' ' + d.aar),
-      ]),
-      h('div', { class: 'kpi-tell' }, [
-        tellChip('ok', vurd.tell.paa, 'på mål'), tellChip('warn', vurd.tell.naer, 'nær mål'),
-        tellChip('danger', vurd.tell.ikke, 'ikke på mål'), vurd.tell.ingen ? tellChip('muted', vurd.tell.ingen, 'uten data') : null,
-      ]),
-      h('div', { class: 'sak-muted sak-small kpi-reg' }, reg
-        ? 'Registrert av ' + navnFraUid(reg.av) + ' · ' + datoTid(reg.at) + (reg.import ? ' (import fra Excel)' : '')
-        : 'Ingen registrering for ' + vurd.maanedNavn.toLowerCase()),
-    ]);
+  /* ---------------------------------------------------------------- statusfelt */
 
-    var varsel = null;
-    if (mangler.length && mangler.length < vurd.totalt) {
-      varsel = h('div', { class: 'sak-alert sak-tone-warn kpi-varsel', role: 'status' }, [
-        U.icon('alert', 16),
-        h('span', null, vurd.maanedNavn + ' mangler ' + mangler.length + ' av ' + vurd.totalt + ' verdier: ' + mangler.map(function (k) { return k.navn; }).join(', ') + '.'),
-        d.kanRegistrere ? U.button('Registrer', { small: true, on: { click: function () { gaaTil('registrer'); } } }) : null,
-      ]);
-    } else if (mangler.length === vurd.totalt && d.kanRegistrere) {
-      varsel = h('div', { class: 'sak-alert sak-tone-info kpi-varsel', role: 'status' }, [
-        U.icon('info', 16), h('span', null, 'Ingen verdier registrert for ' + vurd.maanedNavn.toLowerCase() + ' ennå.'),
-        U.button('Registrer nå', { small: true, variant: 'primary', on: { click: function () { gaaTil('registrer'); } } }),
-      ]);
+  /** Hvor langt unna målet, relativt (0 = på mål). Brukes til å prioritere. */
+  function avvik(r) {
+    if (!L.erTall(r.faktisk) || !L.erTall(r.maal)) return 0;
+    var diff = r.def.retning === 'Ned' ? r.faktisk - r.maal : r.maal - r.faktisk;
+    return Math.max(diff, 0) / Math.max(Math.abs(r.maal), 1);
+  }
+
+  /** Andel av målet nådd (0–1) for målerstaven. */
+  function maaloppnaaelse(r) {
+    if (!L.erTall(r.faktisk) || !L.erTall(r.maal)) return 0;
+    if (r.def.retning === 'Ned') {
+      if (r.faktisk <= r.maal) return 1;
+      return r.maal <= 0 ? 0 : Math.max(0, r.maal / r.faktisk);
     }
+    if (r.maal <= 0) return 1;
+    return Math.max(0, Math.min(1, r.faktisk / r.maal));
+  }
 
-    var fokus = vurd.fokus.length ? h('section', { class: 'kpi-fokus sak-card' }, [
-      h('h2', { class: 'kpi-h2' }, [U.icon('flag', 16), h('span', null, 'Fokusområder')]),
-      h('ul', { class: 'kpi-fokus-liste' }, vurd.fokus.map(function (r) {
+  function byggHero(d, vurd, n) {
+    var t = vurd.tell;
+    var ring = C.statusring([
+      { antall: t.paa, tone: 'ok' }, { antall: t.naer, tone: 'warn' }, { antall: t.ikke, tone: 'danger' }, { antall: t.ingen, tone: 'muted' },
+    ], { tall: t.paa + t.naer + '/' + vurd.totalt, tekst: 'på eller nær mål' });
+
+    var legend = h('ul', { class: 'kpi-hero-legend' }, [
+      [t.paa, 'på mål', 'ok'], [t.naer, 'nær mål', 'warn'], [t.ikke, 'ikke på mål', 'danger'], [t.ingen, 'uten data', 'muted'],
+    ].filter(function (x) { return x[0] || x[2] !== 'muted'; }).map(function (x) {
+      return h('li', null, [h('i', { class: 'kc-dot-ikon kc-bg-' + x[2], 'aria-hidden': 'true' }), h('b', null, String(x[0])), h('span', null, ' ' + x[1])]);
+    }));
+
+    var prioritert = vurd.fokus.slice().sort(function (a, b) { return avvik(b) - avvik(a); }).slice(0, 3);
+    var prio = h('div', { class: 'kpi-hero-blokk kpi-hero-prio' }, [
+      h('div', { class: 'kpi-hero-etikett' }, 'Prioriter nå'),
+      prioritert.length ? h('ol', { class: 'kpi-prio-liste' }, prioritert.map(function (r) {
         var aapne = apneTiltak(kpiTiltak(r.id)).length;
         return h('li', null, [
-          h('a', { href: '#kpi-' + r.id, on: { click: function (e) { e.preventDefault(); var el = document.getElementById('kpi-' + r.id); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus({ preventScroll: true }); } } } }, r.def.navn),
-          h('span', { class: 'kpi-fokus-tall' }, fmt(r.faktisk, r.def) + ' / ' + fmt(r.maal, r.def, true)),
-          h('span', { class: 'sak-small ' + (aapne ? 'sak-muted' : 'kpi-uten-tiltak') }, aapne ? aapne + ' åpne tiltak' : 'ingen tiltak'),
+          h('button', { type: 'button', class: 'kpi-prio-navn', on: { click: function () { aapneRad(r.id); } } }, r.def.navn),
+          h('span', { class: 'kpi-prio-tall' }, fmt(r.faktisk, r.def) + ' / ' + fmt(r.maal, r.def, true)),
+          aapne ? h('span', { class: 'kpi-prio-tiltak' }, aapne + ' tiltak') :
+            h('button', { type: 'button', class: 'kpi-prio-lag', on: { click: function () { nyttTiltak(r.def, r); } } }, '+ tiltak'),
+        ]);
+      })) : h('p', { class: 'kpi-hero-ok' }, 'Ingen KPI-er er under grensen. Godt jobbet!'),
+    ]);
+
+    var mndRuter = L.MAANEDER.map(function (m, i) {
+      var key = L.mndKey(i + 1);
+      var antall = Object.keys((d.verdier && d.verdier[key]) || {}).filter(function (k) { return d.config.kpier[k] && d.config.kpier[k].aktiv !== false; }).length;
+      var tilstand = antall >= vurd.totalt ? 'full' : antall ? 'delvis' : 'tom';
+      return h('button', {
+        type: 'button', class: 'kpi-mnd kpi-mnd-' + tilstand + (i + 1 === n ? ' is-valgt' : ''),
+        title: m + ': ' + antall + ' av ' + vurd.totalt + ' registrert', 'aria-label': m + ', ' + antall + ' av ' + vurd.totalt + ' registrert',
+        'aria-pressed': i + 1 === n ? 'true' : 'false',
+        on: { click: function () { state.maaned = i + 1; render({ tvinges: true }); } },
+      }, m.charAt(0));
+    });
+    var reg = d.registrert && d.registrert[L.mndKey(n)];
+    var reg2 = h('div', { class: 'kpi-hero-blokk kpi-hero-reg' }, [
+      h('div', { class: 'kpi-hero-etikett' }, 'Registrering ' + d.aar),
+      h('div', { class: 'kpi-mnd-rad' }, mndRuter),
+      h('div', { class: 'kpi-hero-liten' }, reg
+        ? L.mndNavn(n) + ' registrert av ' + navnFraUid(reg.av).split(' ')[0] + ' · ' + datoTid(reg.at)
+        : L.mndNavn(n) + ' er ikke registrert'),
+    ]);
+
+    return h('section', { class: 'kpi-hero', 'aria-label': 'KPI-status' }, [
+      h('div', { class: 'kpi-hero-blokk kpi-hero-status' }, [
+        ring,
+        h('div', null, [
+          h('div', { class: 'kpi-hero-etikett' }, 'Status hittil i år'),
+          h('div', { class: 'kpi-hero-periode' }, 't.o.m. ' + L.mndNavn(n).toLowerCase() + ' ' + d.aar),
+          legend,
+        ]),
+      ]),
+      prio,
+      reg2,
+    ]);
+  }
+
+  function byggManglerVarsel(d, vurd, n) {
+    if (!d.kanRegistrere) return null;
+    var mangler = L.manglerVerdi(d.config, d.verdier, n);
+    if (!mangler.length) return null;
+    var alle = mangler.length === vurd.totalt;
+    return h('div', { class: 'sak-alert sak-tone-' + (alle ? 'info' : 'warn') + ' kpi-varsel', role: 'status' }, [
+      U.icon(alle ? 'info' : 'alert', 16),
+      h('span', null, alle ? 'Ingen verdier registrert for ' + L.mndNavn(n).toLowerCase() + ' ennå.'
+        : L.mndNavn(n) + ' mangler ' + mangler.length + ' av ' + vurd.totalt + ' verdier: ' + mangler.map(function (k) { return k.navn; }).join(', ') + '.'),
+      U.button(alle ? 'Registrer nå' : 'Registrer', { small: true, variant: alle ? 'primary' : undefined, on: { click: function () { gaaTil('registrer'); } } }),
+    ]);
+  }
+
+  /* ---------------------------------------------------------------- nøkkeltall */
+
+  function byggNokkeltall(vurd, n) {
+    return h('section', { class: 'kpi-seksjon', 'aria-label': 'Nøkkeltall' }, [
+      h('h2', { class: 'kpi-seksjon-tittel' }, 'Nøkkeltall'),
+      h('div', { class: 'kpi-fliser' }, vurd.rader.map(function (r) {
+        var tone = TONE[r.status];
+        var andel = maaloppnaaelse(r);
+        return h('button', { type: 'button', class: 'kpi-flis kpi-flis-' + tone, 'aria-label': r.def.navn + ': ' + fmt(r.faktisk, r.def) + ', mål ' + fmt(r.maal, r.def, true) + ', ' + r.status, on: { click: function () { aapneRad(r.id); } } }, [
+          h('span', { class: 'kpi-flis-omrade' }, r.def.omrade),
+          h('span', { class: 'kpi-flis-navn' }, r.def.navn),
+          h('span', { class: 'kpi-flis-verdi' }, [h('b', null, fmt(r.faktisk, r.def)), h('span', null, r.maal !== null ? ' / ' + fmt(r.maal, r.def, true) : '')]),
+          h('span', { class: 'kpi-meter', 'aria-hidden': 'true' }, h('span', { class: 'kpi-meter-fyll kc-bg-' + tone, style: 'width:' + Math.round(andel * 100) + '%' })),
+          h('span', { class: 'kpi-flis-status' }, [U.icon(STATUS_IKON[r.status], 14), h('span', null, r.status)]),
         ]);
       })),
-    ]) : null;
+    ]);
+  }
 
-    var grupper = vurd.grupper.map(function (g) {
-      return h('section', { class: 'kpi-gruppe' }, [
-        h('h2', { class: 'kpi-h2' }, g.omrade),
-        h('div', { class: 'kpi-kort-grid' }, g.rader.map(function (r) { return kpiKort(r, n, d); })),
+  /* ---------------------------------------------------------------- utvikling (grafer) */
+
+  var ENHET_TEKST = { Antall: 'antall per måned', '%': 'prosent per måned', Kr: 'kroner per måned', Score: 'score per måned' };
+
+  function chartFmt(enhet) {
+    return function (v, akse) {
+      if (!L.erTall(v)) return '–';
+      if (enhet === 'Kr') return akse && Math.abs(v) >= 1000 ? L.fmtTall(v / 1000, 0) + 'k' : L.fmtTall(Math.round(v), 0) + (akse ? '' : ' kr');
+      if (enhet === '%') return L.fmtTall(v, akse ? 0 : 1) + (akse ? '' : ' %');
+      if (enhet === 'Score') return L.fmtTall(v, akse ? 1 : 2);
+      return L.fmtTall(v, Math.round(v) === v ? 0 : 1);
+    };
+  }
+
+  /** Grafer per område og enhet; maks 4 serier per graf (fordeles jevnt). */
+  function grafGrupper(vurd) {
+    var ut = [];
+    vurd.grupper.forEach(function (g) {
+      var perEnhet = {};
+      g.rader.forEach(function (r) { (perEnhet[r.def.enhet] = perEnhet[r.def.enhet] || []).push(r); });
+      Object.keys(perEnhet).forEach(function (enhet) {
+        var rader = perEnhet[enhet];
+        var biter = Math.ceil(rader.length / 4), str = Math.ceil(rader.length / biter);
+        for (var i = 0; i < rader.length; i += str) ut.push({ omrade: g.omrade, enhet: enhet, rader: rader.slice(i, i + str) });
+      });
+    });
+    return ut;
+  }
+
+  function byggUtvikling(d, vurd, n) {
+    var grafer = grafGrupper(vurd).map(function (gr) {
+      var linje = gr.enhet === '%' || gr.enhet === 'Score';
+      var en = gr.rader.length === 1 ? gr.rader[0] : null;
+      var tittel = en ? en.def.navn : gr.omrade + ' – ' + ENHET_TEKST[gr.enhet];
+      var maal = en && en.aarsmaal !== null ? [{ navn: en.def.maaltype === 'HIA' ? 'Mål per måned' : 'Mål', verdi: en.def.maaltype === 'HIA' ? en.aarsmaal / 12 : en.aarsmaal }] : [];
+      return h('article', { class: 'kpi-panel kpi-graf-panel' }, [
+        h('header', { class: 'kpi-panel-head' }, [
+          h('div', null, [h('h3', null, tittel), h('div', { class: 'kpi-panel-under' }, en ? gr.omrade + ' · ' + ENHET_TEKST[gr.enhet] : d.aar + ' · hold over en måned for verdier')]),
+        ]),
+        C.maanedsgraf({
+          type: linje ? 'linje' : 'stolpe', valgt: n, fmt: chartFmt(gr.enhet), heltall: gr.enhet === 'Antall', hoyde: 210, tittel: tittel,
+          serier: gr.rader.map(function (r, i) { return { navn: r.def.navn, verdier: r.serie, farge: i + 1 }; }),
+          fjor: en ? { navn: String(d.aar - 1), verdier: en.fjorSerie } : null,
+          maal: maal,
+        }),
       ]);
     });
+    return h('section', { class: 'kpi-seksjon', 'aria-label': 'Utvikling' }, [
+      h('h2', { class: 'kpi-seksjon-tittel' }, 'Utvikling per måned'),
+      h('div', { class: 'kpi-graf-grid' }, grafer),
+    ]);
+  }
 
-    return [sammendrag, varsel, fokus].concat(grupper);
+  /* ---------------------------------------------------------------- område-tabeller */
+
+  var aapneRader = {};
+  function aapneRad(id) {
+    aapneRader[id] = true;
+    render({ tvinges: true });
+    var el = document.getElementById('kpi-rad-' + id);
+    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); el.focus({ preventScroll: true }); }
+  }
+
+  function byggOmradePanel(g, n, d) {
+    var tell = { ok: 0, warn: 0, danger: 0 };
+    g.rader.forEach(function (r) { var t = TONE[r.status]; if (tell[t] !== undefined) tell[t]++; });
+    var rader = [];
+    g.rader.forEach(function (r) {
+      var def = r.def, tone = TONE[r.status];
+      var tiltak = kpiTiltak(r.id), aapne = apneTiltak(tiltak);
+      var aapen = !!aapneRader[r.id];
+      var rad = h('tr', {
+        class: 'kpi-rad' + (aapen ? ' is-aapen' : ''), id: 'kpi-rad-' + r.id, tabindex: '-1',
+      }, [
+        h('th', { scope: 'row' }, h('button', { type: 'button', class: 'kpi-rad-knapp', 'aria-expanded': aapen ? 'true' : 'false', on: { click: function () { aapneRader[r.id] = !aapen; render({ tvinges: true }); } } }, [
+          U.icon('chevron-right', 16), h('span', null, def.navn),
+        ])),
+        h('td', { class: 'kpi-num', 'data-label': L.mndNavn(n) }, fmt(r.periode, def)),
+        h('td', { class: 'kpi-num kpi-num-sterk', 'data-label': 'Hittil i år' }, fmt(r.faktisk, def)),
+        h('td', { class: 'kpi-num', 'data-label': 'Mål' }, fmt(r.maal, def, true)),
+        h('td', { class: 'kpi-num kpi-skjul-smal', 'data-label': 'I fjor' }, fmt(r.fjorHia, def)),
+        h('td', { 'data-label': 'Status' }, statusChip(r.status)),
+        h('td', { class: 'kpi-skjul-smal', 'data-label': 'Trend' }, C.sparkline({ verdier: r.serie, valgt: n, type: def.aggregat === 'Snitt' ? 'linje' : 'stolpe', tone: tone, label: 'Trend for ' + def.navn })),
+        h('td', { class: 'kpi-tiltak-celle', 'data-label': 'Tiltak' }, aapne.length
+          ? h('span', { class: 'kpi-tiltak-antall' }, aapne.length + ' åpne')
+          : h('span', { class: tone === 'danger' ? 'kpi-tiltak-mangler' : 'sak-muted' }, tone === 'danger' ? 'Mangler' : '–')),
+      ]);
+      rader.push(rad);
+      if (aapen) rader.push(h('tr', { class: 'kpi-detalj-rad' }, h('td', { colspan: '8' }, byggDetalj(r, n, d, tiltak))));
+    });
+    return h('section', { class: 'kpi-panel', 'aria-label': g.omrade }, [
+      h('header', { class: 'kpi-panel-head' }, [
+        h('h3', null, g.omrade),
+        h('div', { class: 'kpi-panel-tell' }, [
+          tell.ok ? tellChip('ok', tell.ok, 'på mål') : null, tell.warn ? tellChip('warn', tell.warn, 'nær') : null, tell.danger ? tellChip('danger', tell.danger, 'ikke på mål') : null,
+        ]),
+      ]),
+      h('div', { class: 'kpi-tabell-wrap' }, h('table', { class: 'kpi-tabell' }, [
+        h('thead', null, h('tr', null, [
+          h('th', { scope: 'col' }, 'KPI'), h('th', { scope: 'col', class: 'kpi-num' }, L.mndNavn(n)), h('th', { scope: 'col', class: 'kpi-num' }, 'Hittil i år'),
+          h('th', { scope: 'col', class: 'kpi-num' }, 'Mål'), h('th', { scope: 'col', class: 'kpi-num kpi-skjul-smal' }, 'I fjor'), h('th', { scope: 'col' }, 'Status'),
+          h('th', { scope: 'col', class: 'kpi-skjul-smal' }, 'Trend'), h('th', { scope: 'col' }, 'Tiltak'),
+        ])),
+        h('tbody', null, rader),
+      ])),
+    ]);
+  }
+
+  function byggDetalj(r, n, d, tiltak) {
+    var def = r.def;
+    var maalMnd = r.aarsmaal === null ? null : def.maaltype === 'HIA' ? r.aarsmaal / 12 : r.aarsmaal;
+    var fakta = [
+      ['Hittil i år', fmt(r.faktisk, def)], ['Mål hittil i år', fmt(r.maal, def, true)], ['Årsmål', fmt(r.aarsmaal, def)],
+      def.aggregat === 'Sum' && def.retning === 'Opp' ? ['Gjenstår av årsmål', L.erTall(r.rest) ? fmt(Math.max(r.rest, 0), def, true) : '–'] : null,
+      ['I fjor samme periode', fmt(r.fjorHia, def)], ['Retning', def.retning === 'Ned' ? 'Lavere er bedre' : 'Høyere er bedre'],
+      ['Grense «nær mål»', '±' + L.fmtTall(r.grense, 0) + ' %'],
+    ];
+    return h('div', { class: 'kpi-detalj' }, [
+      h('div', { class: 'kpi-detalj-graf' }, C.maanedsgraf({
+        type: def.aggregat === 'Snitt' ? 'linje' : 'stolpe', valgt: n, fmt: chartFmt(def.enhet), hoyde: 220, heltall: def.enhet === 'Antall', tittel: def.navn,
+        serier: [{ navn: String(d.aar), verdier: r.serie, farge: 1 }],
+        fjor: { navn: String(d.aar - 1), verdier: r.fjorSerie },
+        maal: maalMnd !== null ? [{ navn: def.maaltype === 'HIA' ? 'Mål per måned' : 'Mål', verdi: maalMnd }] : [],
+      })),
+      h('div', { class: 'kpi-detalj-side' }, [
+        h('dl', { class: 'kpi-fakta' }, fakta.filter(Boolean).map(function (f) { return h('div', null, [h('dt', null, f[0]), h('dd', null, f[1])]); })),
+        h('div', { class: 'kpi-detalj-tiltak' }, [
+          h('div', { class: 'kpi-hero-etikett' }, 'Tiltak'),
+          tiltak.length ? h('div', { class: 'kpi-tiltak' }, tiltak.slice(0, 6).map(function (t) {
+            var lukket = TERMINAL.indexOf(t.status) >= 0;
+            var forsinket = !lukket && t.frist && t.frist < idagIso();
+            return h('button', { type: 'button', class: 'kpi-tiltak-rad' + (forsinket ? ' is-forsinket' : '') + (lukket ? ' is-lukket' : ''), on: { click: function () { host().openTiltak(t.fbKey); } } }, [
+              h('span', { class: 'kpi-tiltak-tittel' }, t.tittel || 'Uten tittel'),
+              h('span', { class: 'sak-small sak-muted' }, [t.status || '', t.eier ? ' · ' + t.eier : '', t.frist && !lukket ? ' · ' + (forsinket ? 'forfalt ' : 'frist ') + U.fmtDato(t.frist, idagIso()) : ''].join('')),
+            ]);
+          })) : h('p', { class: 'sak-muted sak-small' }, 'Ingen tiltak koblet til denne KPI-en.'),
+          U.button('Nytt tiltak', { small: true, icon: 'plus', variant: 'primary', ariaLabel: 'Nytt tiltak for ' + def.navn, on: { click: function () { nyttTiltak(def, r); } } }),
+        ]),
+      ]),
+    ]);
   }
 
   function tellChip(tone, antall, label) {
     return h('span', { class: 'sak-chip sak-tone-' + tone }, [h('b', null, String(antall)), h('span', null, ' ' + label)]);
-  }
-
-  function kpiKort(r, n, d) {
-    var def = r.def;
-    var tiltak = kpiTiltak(r.id), aapne = apneTiltak(tiltak);
-    var maalTekst = r.maal === null ? 'Ingen mål satt'
-      : def.maaltype === 'HIA' ? 'Mål HIÅ ' + fmt(r.maal, def, true) + ' (år ' + fmt(r.aarsmaal, def) + ')'
-        : 'Mål ' + fmt(r.maal, def);
-    var retningTekst = def.retning === 'Ned' ? 'Lavere er bedre' : 'Høyere er bedre';
-    var fjorTekst = L.erTall(r.fjorHia) ? 'I fjor samme periode: ' + fmt(r.fjorHia, def) : null;
-    var tiltakListe = h('div', { class: 'kpi-tiltak', hidden: !aapne.length }, aapne.slice(0, 4).map(function (t) {
-      var forsinket = t.frist && t.frist < idagIso();
-      return h('button', { type: 'button', class: 'kpi-tiltak-rad' + (forsinket ? ' is-forsinket' : ''), on: { click: function () { host().openTiltak(t.fbKey); } } }, [
-        h('span', { class: 'kpi-tiltak-tittel' }, t.tittel || 'Uten tittel'),
-        h('span', { class: 'sak-small sak-muted' }, [t.eier || '', t.frist ? ' · ' + (forsinket ? 'forfalt ' : 'frist ') + U.fmtDato(t.frist, idagIso()) : ''].join('')),
-      ]);
-    }));
-    return h('article', { class: 'sak-card kpi-kort kpi-tone-' + TONE[r.status], id: 'kpi-' + r.id, tabindex: '-1', 'aria-label': def.navn + ': ' + r.status }, [
-      h('div', { class: 'kpi-kort-top' }, [h('h3', null, def.navn), statusChip(r.status)]),
-      h('div', { class: 'kpi-kort-verdi' }, [
-        h('b', null, fmt(r.faktisk, def)),
-        h('span', { class: 'sak-muted sak-small' }, def.aggregat === 'Snitt' ? 'snitt hittil i år' : 'hittil i år'),
-      ]),
-      h('div', { class: 'kpi-kort-meta sak-small' }, [
-        h('span', null, maalTekst), h('span', { class: 'sak-muted' }, retningTekst + (r.status !== L.STATUS.INGEN ? ' · grense ±' + L.fmtTall(r.grense, 0) + ' %' : '')),
-        h('span', { class: 'sak-muted' }, L.mndNavn(n) + ': ' + fmt(r.periode, def) + (L.erTall(r.fjorPeriode) ? ' (i fjor ' + fmt(r.fjorPeriode, def) + ')' : '')),
-        fjorTekst ? h('span', { class: 'sak-muted' }, fjorTekst) : null,
-      ]),
-      minigraf(r, n),
-      tiltakListe,
-      h('div', { class: 'kpi-kort-foot' }, [
-        h('span', { class: 'sak-small sak-muted' }, tiltak.length ? aapne.length + ' åpne · ' + (tiltak.length - aapne.length) + ' lukket tiltak' : 'Ingen tiltak'),
-        U.button('Tiltak', { small: true, icon: 'plus', variant: 'secondary', ariaLabel: 'Nytt tiltak for ' + def.navn, on: { click: function () { nyttTiltak(def, r, d); } } }),
-      ]),
-    ]);
   }
 
   /* ---------------------------------------------------------------- nytt tiltak */

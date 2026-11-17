@@ -15,7 +15,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <link rel="stylesheet" href="./saker/sak.css?v=2">
-<link rel="stylesheet" href="./renhold-kpi/kpi.css?v=1">
+<link rel="stylesheet" href="./renhold-kpi/kpi.css?v=2">
 <script src="./push-v1a.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -1207,7 +1207,8 @@ body[data-contrast="high"][data-appearance="dark"] #mine .action-deadline{color:
 <script src="./saker/sak-app.js?v=1"></script>
 <script src="./renhold-kpi/kpi-logic.js?v=1"></script>
 <script src="./renhold-kpi/kpi-import.js?v=1"></script>
-<script src="./renhold-kpi/kpi-app.js?v=1"></script>
+<script src="./renhold-kpi/kpi-charts.js?v=1"></script>
+<script src="./renhold-kpi/kpi-app.js?v=2"></script>
 <script>
 const firebaseConfig={apiKey:'AIzaSyDT6bW6kErdyhVK3WTMDEERsCLRTdjnoTg',authDomain:'opex-nortura.firebaseapp.com',databaseURL:'https://opex-nortura-default-rtdb.europe-west1.firebasedatabase.app',projectId:'opex-nortura',storageBucket:'opex-nortura.firebasestorage.app',messagingSenderId:'72695195747',appId:'1:72695195747:web:cb8ca9c1970b4fc3c9b056'};firebase.initializeApp(firebaseConfig);const db=firebase.database();const auth=firebase.auth();const ref=db.ref('tiltak');
 const TONY_UID='TJKI3zlDKSR7jvFXksVFgEgjS432';const KENNETH_UID='gibm3aDi1KWlNyl7P3jTktQoGsM2';const ERLING_UID='lJ7bn7HkbcZnhDoxfaBYQKEFL083';const USERS=['Tony Danielsen','Kenneth Nordbakk','Erling Magnussen','Ole Henrik Ødegård'];const PROFILE_BY_UID={[TONY_UID]:{name:'Tony Danielsen',role:'Admin / leder'},[KENNETH_UID]:{name:'Kenneth Nordbakk',role:'Tiltakseier'},[ERLING_UID]:{name:'Erling Magnussen',role:'Tiltakseier'}};let activeUser='';let authUser=null;let tasks=[];let editKey=null;let current='dashboard';let dataListening=false;let previousLoginAt='';

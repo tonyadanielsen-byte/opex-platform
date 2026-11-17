@@ -9,8 +9,9 @@ Egen fane i OpEx Hub (`#kpi`, `#kpi/registrer`, `#kpi/oppsett`).
 |---|---|
 | `renhold-kpi/kpi-logic.js` | Beregning (HIÅ, mål, status, grenser) og tallformat. Ren, testet. |
 | `renhold-kpi/kpi-import.js` | Leser Excel-arket (månedsark Januar–Desember) til oppsett + verdier. |
-| `renhold-kpi/kpi-app.js` | Datalag (callables), ruting og visninger: Oversikt, Registrer, Oppsett. |
-| `renhold-kpi/kpi.css` | Stil (bygger på Saker-modulens tokens; endelig utseende kommer senere). |
+| `renhold-kpi/kpi-app.js` | Datalag (callables), ruting og visninger: Oversikt (statusfelt, nøkkeltall, utvikling, detaljer per område), Registrer, Oppsett. |
+| `renhold-kpi/kpi-charts.js` | Avhengighetsfrie SVG-grafer: månedsgraf med mål og fjorår (hover), sparkline, statusring. |
+| `renhold-kpi/kpi.css` | Stil (bygger på appens tokens og fargeprofil; faste status- og seriefarger). |
 | `functions/renhold-kpi-core.js` | Serverlogikk: tilgang, validering, lagring, logg, import, tiltak. |
 | `functions/renhold-kpi-api.js` | Callables (`getRenholdKpiV1`, `saveRenholdKpiMaanedV1`, `saveRenholdKpiConfigV1`, `importRenholdKpiV1`, `createRenholdKpiTiltakV1`). |
 
